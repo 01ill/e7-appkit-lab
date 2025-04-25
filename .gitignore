@@ -4,3 +4,4 @@ tmp/
 *.cbuild-set.yml
 *.cbuild.yml
 *.clangd
+src/*/RTE/*
