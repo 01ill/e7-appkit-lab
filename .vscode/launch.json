@@ -16,6 +16,8 @@
             "preLaunchCommands": [
                 "monitor speed 15000"
             ],
+            // Armclang has problems generating ELF which can be correctly read by Arm-GNU-GDB
+            // Because of this, a hex file is generated which is loaded on the device while debugging
             "overrideLaunchCommands": [
                 "monitor reset halt",
                 "load ${input:substituteHexFile}",
@@ -38,6 +40,8 @@
             },
         }
     ],
+    // Provide the hex file as input
+    // The Command Variable extension is needed for transforming the filename
     "inputs": [
         {
             "id": "substituteHexFile",

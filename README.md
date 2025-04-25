@@ -1,4 +1,4 @@
-# A7 Appkit Lab
+# E7 Appkit Lab
 This repository contains multiple projects to experiment with the Alif Ensemble E7 AppKit. The following projects are included:
 - bare_metal
 - check_features
