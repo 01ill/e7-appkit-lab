@@ -2,12 +2,8 @@
     "files.associations": {
         "*.h": "c",
     },
-
     "cmake.configureOnOpen": false,
-
     "cortex-debug.variableUseNaturalFormat": true,
-    "peripheral-inspector.periodicRefreshMode": "while running",
-    "peripheral-inspector.periodicRefreshInterval": 500,
     "cmsis-csolution.actions": [
         {
             "path": "alif.csolution.yml",
@@ -18,6 +14,6 @@
         }
     ],
     "clangd.arguments": [
-        "--compile-commands-dir=/Users/till/Documents/Studium/Module/2025_SoSe/Tests/alif_e7_tests/out/tflm_test/HE/debug"
+        "--compile-commands-dir=/Users/till/Documents/Studium/Module/2025_SoSe/Tests/a7-appkit-lab/out/gemm_tests/HE/debug-gcc"
     ],
 }

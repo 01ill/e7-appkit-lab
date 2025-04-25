@@ -9,7 +9,7 @@ solution:
     - compiler: GCC
 
   # Select used compiler
-  compiler: AC6
+  # compiler: AC6
 
   packs:
     - pack: AlifSemiconductor::Ensemble@1.3.3
@@ -35,15 +35,32 @@ solution:
         - "CORE_M55_HP"
 
   build-types:
-    - type: debug
+    - type: debug-release-gcc
+      compiler: GCC
+      optimize: speed
+      debug: on
+    - type: debug-release-ac6
+      compiler: AC6
+      optimize: speed
+      debug: on
+    - type: debug-gcc
+      compiler: GCC
       optimize: none
       debug: on
       define:
         - _DEBUG
-    - type: debug-release
-      optimize: speed
+    - type: debug-ac6
+      compiler: AC6
+      optimize: none
       debug: on
-    - type: release
+      define:
+        - _DEBUG
+    - type: release-gcc
+      compiler: GCC
+      optimize: speed
+      debug: off
+    - type: release-ac6
+      compiler: AC6
       optimize: speed
       debug: off
 

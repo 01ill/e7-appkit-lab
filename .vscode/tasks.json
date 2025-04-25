@@ -17,6 +17,7 @@
             "type": "shell",
             "command": [
                 "cbuild ${command:cmsis-csolution.getSolutionPath} --clean;",
+                "find . -name '*.cbuild.yml' -delete"
             ],
             "windows": {
                 "command": [
