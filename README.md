@@ -1,59 +1,50 @@
-# VSCode Getting Started Template
-A simple CMSIS-Pack based example to setup and test VS Code development environment for Alif Ensemble kits.
+# A7 Appkit Lab
+This repository contains multiple projects to experiment with the Alif Ensemble E7 AppKit. The following projects are included:
+- bare_metal
+- check_features
+- dotp_tests
+- gemm_tests
+- helium_instructions
+- jit_test
+- stream_benchmark
+- tflm_test
 
-- The solution consists of following projects:
-  - **blinky** is a bare bone LED blinker
-  - **hello** demonstrates retargeting printf() to UART
-  - **hello_rtt** demonstrates retargeting printf() to SEGGER RTT
+More information about the projects can be found in the project folders
 
-- Arm GNU toolchain is used as a default. There are build-type options for IAR and ARM compiler armclang for reference.
-  - You can find the compiler specific settings in `cdefault.yaml`
-  - **TIP:** The tools loaded by Arm Environment Manager are configured in `vcpkg-configuration.json`.
-  - To download armclang you can add "arm:compilers/arm/armclang": "^6.22.0" to the "requires" object.
-
-## Note about Ensemble gen1 support
-The default main branch is set to support Gen 2 Ensemble devices. "gen1" branch must be used
-for older Gen 1 devices.
+## Prerequisites
+The following prerequisites need to be installed:
+- SEGGER J-Link (includes the J-Link GDB Server). This is needed for the debug extension.
+- ARM GNU Toolchain. This is needed for the debug extension.
+- Alif SeToolkit. This is needed for programming the AppKit. Can be downloaded from [alifsemi.com](alifsemi.com).
+- VS Code with the following extensions (they will be recommended when opening VS Code)
+  - Arm Tools Environment Manager
+  - Arm CMSIS Solution
+  - Cortex Debug (used for providing support to debug)
+  - Command Variable (needed for modifying the `launch.json`-file to load the .hex-file while debugging)
 
 ## Quick start
 First clone the template project repository
 ```
-git clone https://github.com/alifsemi/alif_vscode-template.git
-cd alif_vscode-template
+git clone https://github.com/01ill/a7-appkit-lab.git
+cd a7-appkit-lab
 git submodule update --init
 ```
-OR
+
+The CMSIS Toolbox and `tasks.json` contain all needed information for building a project. The project needs to be selected from the CMSIS Toolbox and can then be built via the included build task.
+
+The file `launch.json` contains the debugging configuration and a debug session can be started natively in VS Code.
+
+## Project structure
 ```
-git clone --recursive https://github.com/alifsemi/alif_vscode-template.git
-```
-
-To build the template for a supported board other than the DevKit, you have to update the `board.h` file to pick the right variant of the board.
-By default the template will build for gen2 DevKit.
-
-The required software setup consists of *VS Code*, *Git*, *CMake*, *Ninja build system*, *cmsis-toolbox*, *Arm GNU toolchain* and *Alif SE tools*.
-By default the template project uses J-link so *J-link software* is required for debugging.
-In addition to build tools the VS Code extensions and CMSIS packs will be downloaded automatically during the process.
-
-To make environment setup easier this project uses *Arm Environment Manager* for downloading and configuring most of the tool dependencies.
-Basically only VS Code, Alif SE tools and J-Link software need to be downloaded and installed manually.
-
-**NOTE:** Please see the Readme_Arm_Environment_Manager.txt file first if you would like to manage where the tools are installed.
-
-Opening the project folder with VS Code automatically suggests installing the extensions needed by this project:
-- Arm Environment Manager
-- Arm CMSIS csolution
-- Cortex-Debug
-- Microsoft C/C++ Extension Pack
-
-After setting up the environment you can just click the CMSIS icon and then the *context* and *build* icon to get going.
-
-For Alif SE tools and J-link debugging support add the following entries to VS Code user settings.json (Press F1 and start typing 'User')
-```
-{
-    "alif.setools.root" : "C:/alif-se-tools/app-release-exec",
-    "cortex-debug.JLinkGDBServerPath": "C:/Program Files/SEGGER/JLink/JLinkGDBServerCL.exe"
-}
+├── libs - contains all needed helper libraries for board support and timing
+├── src - contains all projects
+│   ├── helium_instructions - sample project
+│   │   ├── helium_instructions.cproject.yml - CMSIS configuration of the project
+│   │   ├── main.cpp
+│   │   └── RTE - contains generated files from CMSIS needed for building
+├── cdefault.yml - compiler and linker configuration
+├── e7_tests.csolution.yml - common configuration of all projects
+└── vcpkg-configuration.json - configuration of the CMSIS Toolbox
 ```
 
-## More detailed getting started guide
-Please refer to the [Getting started guide](doc/getting_started.md)
+The projects use CMSIS intermediate layers to provide the board and timing support. All Layers are contained in the `libs` directory.
