@@ -18,6 +18,7 @@ class JIT::Backend {
         void insertWlsLabel(Instructions::Instruction16 wlsPosition, int16_t imm12);
         uintptr_t getThumbAddress() const;
         Instructions::Instruction16 * getInstructions();
+        void resetKernel();
 
     private:
         Instructions::Instruction16 instructions[1024] = {0};

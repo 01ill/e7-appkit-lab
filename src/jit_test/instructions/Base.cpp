@@ -26,6 +26,6 @@ JIT::Instructions::Instruction32  JIT::Instructions::Base::letp(int16_t imm11) {
     imm11 = -imm11; // wird von PC abgezogen, d.h. wenn imm11 negativ ist, dann muss es um zurückzuspringen positiv gesetzt werden
     imm11 >>= 1U; // right shift, weil im Decode ein "Left Shift" gemacht wird
     instr |= (0x01 & imm11) << 11U; // set imml
-    instr |= (0xfe & imm11); // set immh
+    instr |= (0x7fe & imm11); // set immh
     return instr;
 }

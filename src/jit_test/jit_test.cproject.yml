@@ -7,6 +7,7 @@ project:
         - file: backend/Backend.cpp
         - file: generators/Simple.cpp
         - file: generators/Triad.cpp
+        - file: generators/PeakPerformance.cpp
         - file: instructions/Arithmetic.cpp
         - file: instructions/Base.cpp
         - file: instructions/DataProcessing.cpp

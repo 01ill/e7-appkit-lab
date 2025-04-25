@@ -35,12 +35,12 @@ solution:
         - "CORE_M55_HP"
 
   build-types:
-    - type: debug-release-gcc
-      compiler: GCC
-      optimize: speed
-      debug: on
     - type: debug-release-ac6
       compiler: AC6
+      optimize: speed
+      debug: on
+    - type: debug-release-gcc
+      compiler: GCC
       optimize: speed
       debug: on
     - type: debug-gcc
@@ -73,7 +73,7 @@ solution:
     - project: src/dotp_tests/dotp_tests.cproject.yml
     - project: src/helium_instructions/helium_instructions.cproject.yml
     - project: src/gemm_tests/gemm_tests.cproject.yml
-    - project: src/stream_benchmark/stream_benchmark.cproject.yml
+    - project: src/micro_benchmark/micro_benchmark.cproject.yml
     - project: src/tflm_test/tflm_test.cproject.yml
     - project: src/jit_test/jit_test.cproject.yml
     - project: src/check_features/check_features.cproject.yml

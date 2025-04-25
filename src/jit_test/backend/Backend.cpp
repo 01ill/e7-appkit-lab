@@ -34,3 +34,8 @@ uintptr_t JIT::Backend::getThumbAddress() const {
     //return reinterpret_cast<uintptr_t>(instructions);
     return reinterpret_cast<uintptr_t>(instructions) | 0x1U;
 }
+
+void JIT::Backend::resetKernel() {
+    // as no dynamic memory allocation is used, it is sufficient to just reset the instruction count/pointer
+    instructionCount = 0;
+}

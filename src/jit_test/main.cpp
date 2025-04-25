@@ -3,6 +3,7 @@
 #include <cstdint>
 #include "LPRTC.hpp"
 #include "board.h"
+#include "generators/PeakPerformance.hpp"
 #include "generators/Triad.hpp"
 #include "fault_handler.h"
 #include <RTE_Components.h>
@@ -12,51 +13,74 @@
 #include "generators/Simple.hpp"
 
 static char PRINTF_OUT_STRING[256] __attribute__((used, section(".bss.array_region_sram0")));
+constexpr uint32_t peakCount = 300000;
+static float a[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
+static float b[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
+static float c[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 
 __NO_RETURN int main() {
  	fault_dump_enable(true);
 	SEGGER_RTT_ConfigUpBuffer(0, nullptr, nullptr, 0, SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
 	LPRTC::getInstance().enable();
 
-	using jitTest = void(*)(uint32_t *);
-	uint32_t val = 3;
-
-	// Thumb-Instruktionen sind Half-Word Aligned, d.h. bei 32Bit Instruktionen, müssen diese einfach in zwei "Instruktionen" aufgeteilt werden
-	// Die CPU weiß dann, was damit zu tun ist
-	// https://developer.arm.com/documentation/dui0473/m/overview-of-the-arm-architecture/arm-and-thumb-instruction-set-overview
-	static const uint16_t instr[] = {
-		0x6801, // LDR R1, [R0]
-		0xf101, // ADD.W R1, R1, #3
-		0x0103, // ADD.W R1, R1, #3
-		0x6001, // STR R1, [R0]
-		0x4770 // BX LR
-	};
-	__DSB(); // Data Synchronization Barrier
-	__ISB(); // Instruction Synchronization Barrier
-
-	jitTest jt = reinterpret_cast<jitTest>(reinterpret_cast<uintptr_t>(instr) | 1U); // LSB setzen für THUMB-Mode
-	jt(&val);
-
-
-	JIT::Generators::Simple simpleGen;
-	JIT::Generators::Simple::Func simpleFunc = simpleGen.generate();
-	uint32_t ret = simpleFunc();
-	SEGGER_RTT_printf(0, "ret simple %d\n", ret);
-
-	JIT::Generators::Triad triadGen;
-	constexpr uint16_t count = 32;
-	JIT::Generators::Triad::Func triadFunc = triadGen.generate(count);
-	float a[count] = {0};
-	float b[count] = {0};
-	float c[count] = {0};
-	for (uint32_t i = 0; i < count; i++) {
+	JIT::Generators::PeakPerformance peakGen;
+	for (uint32_t i = 0; i < peakCount; i++) {
 		a[i] = i;
 		b[i] = i;
+		c[i] = 0;
 	}
 	float scalar = 3.0;
-	triadFunc(a, b, c, scalar);
-	
-	SEGGER_RTT_printf(0, "Val New %d\n", val);
+	SEGGER_RTT_printf(0, "OperationalIntensity, GFLOPS\n");
+	for (float opi = 0.25; opi < 1; opi += 0.25) {
+		JIT::Generators::PeakPerformance::Func peakFunc = peakGen.generateSteps(opi);
+		uint32_t start = LPRTC::getInstance().getCurrentValue();
+		peakFunc(a, b, c, scalar, peakCount);
+		uint32_t end = LPRTC::getInstance().getCurrentValue();
+		// SEGGER_RTT_printf(0, "%d\n", end - start);
+
+		float time = (float)(end - start) / 32768.0f;
+		uint32_t flops = (opi * 8 * 4 * peakCount) / 4;
+		float gflops = (flops / time) / pow(10, 9);
+		printf("%f, %f\n", opi, gflops);
+	}
+	for (uint32_t opi = 1; opi < 120; opi++) {
+		JIT::Generators::PeakPerformance::Func peakFunc = peakGen.generate(opi);
+		uint32_t start = LPRTC::getInstance().getCurrentValue();
+		peakFunc(a, b, c, scalar, peakCount);
+		uint32_t end = LPRTC::getInstance().getCurrentValue();
+		// SEGGER_RTT_printf(0, "%d\n", end - start);
+
+		float time = (float)(end - start) / 32768.0f;
+		uint32_t flops = (opi * 8 * 4 * peakCount) / 4;
+		float gflops = (flops / time) / pow(10, 9);
+		printf("%d, %f\n", opi, gflops);
+	}
+	SEGGER_RTT_printf(0, "OperationalIntensity, GFLOPS\n");
+	for (float opi = 0.25; opi < 1; opi += 0.25) {
+		JIT::Generators::PeakPerformance::Func peakFunc = peakGen.generateStepsNoMem(opi);
+		uint32_t start = LPRTC::getInstance().getCurrentValue();
+		peakFunc(a, b, c, scalar, peakCount);
+		uint32_t end = LPRTC::getInstance().getCurrentValue();
+		// SEGGER_RTT_printf(0, "%d\n", end - start);
+
+		float time = (float)(end - start) / 32768.0f;
+		uint32_t flops = (opi * 8 * 4 * peakCount) / 4;
+		float gflops = (flops / time) / pow(10, 9);
+		printf("%f, %f\n", opi, gflops);
+	}
+	for (uint32_t opi = 1; opi < 120; opi++) {
+		JIT::Generators::PeakPerformance::Func peakFunc = peakGen.generateNoMem(opi);
+		uint32_t start = LPRTC::getInstance().getCurrentValue();
+		peakFunc(a, b, c, scalar, peakCount);
+		uint32_t end = LPRTC::getInstance().getCurrentValue();
+		// SEGGER_RTT_printf(0, "%d\n", end - start);
+
+		float time = (float)(end - start) / 32768.0f;
+		uint32_t flops = (opi * 8 * 4 * peakCount) / 4;
+		float gflops = (flops / time) / pow(10, 9);
+		printf("%d, %f\n", opi, gflops);
+	}
+
 
 	LPRTC::getInstance().disable();
 	while (1) {

@@ -22,6 +22,7 @@ class JIT::Instructions::Vector {
 
 
         static Instruction32 vfmaVectorByScalarPlusVector(VectorRegister Qda, VectorRegister Qn, Register Rm, bool bf16);
+        static Instruction32 vfma(VectorRegister Qda, VectorRegister Qn, VectorRegister Qm, bool bf16);
 };
 
 
