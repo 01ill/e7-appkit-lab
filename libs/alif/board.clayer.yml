@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/tools/projmgr/2.8.0/tools/projmgr/schemas/clayer.schema.json
+
+# This layer provides access to the board internals and contains startup code.
+# It is needed for each application
+
+layer:
+  groups:
+    - group: Board
+      files:
+        # - file: ../board/devkit_gen2/board_init.c # not needed because only the appkit is used
+        - file: ../board/appkit_gen2/board_init.c
+
+  add-path:
+    - .
+    - ../board/

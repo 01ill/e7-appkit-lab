@@ -1,0 +1,35 @@
+cbuild-pack:
+  resolved-packs:
+    - resolved-pack: ARM::CMSIS@6.0.0
+      selected-by-pack:
+        - ARM::CMSIS@6.0.0
+    - resolved-pack: ARM::CMSIS-Compiler@2.1.0
+      selected-by-pack:
+        - ARM::CMSIS-Compiler@2.1.0
+    - resolved-pack: ARM::CMSIS-DSP@1.16.2
+      selected-by-pack:
+        - ARM::CMSIS-DSP@1.16.2
+    - resolved-pack: ARM::CMSIS-NN@7.0.0
+      selected-by-pack:
+        - ARM::CMSIS-NN@7.0.0
+    - resolved-pack: AlifSemiconductor::Ensemble@1.3.3
+      selected-by-pack:
+        - AlifSemiconductor::Ensemble@1.3.3
+    - resolved-pack: Arm::ethos-u-core-driver@1.24.11
+      selected-by-pack:
+        - Arm::ethos-u-core-driver@1.24.11
+    - resolved-pack: tensorflow::flatbuffers@1.24.11
+      selected-by-pack:
+        - tensorflow::flatbuffers@1.24.11
+    - resolved-pack: tensorflow::gemmlowp@1.24.11
+      selected-by-pack:
+        - tensorflow::gemmlowp@1.24.11
+    - resolved-pack: tensorflow::kissfft@1.24.11
+      selected-by-pack:
+        - tensorflow::kissfft@1.24.11
+    - resolved-pack: tensorflow::ruy@1.24.11
+      selected-by-pack:
+        - tensorflow::ruy@1.24.11
+    - resolved-pack: tensorflow::tensorflow-lite-micro@1.24.11
+      selected-by-pack:
+        - tensorflow::tensorflow-lite-micro@1.24.11

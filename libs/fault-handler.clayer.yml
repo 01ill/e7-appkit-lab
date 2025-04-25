@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/tools/projmgr/2.8.0/tools/projmgr/schemas/clayer.schema.json
+
+# This layer provides the Alif FaultHandler
+# This is needed when you want to debug hard faults and should be included when debugging
+
+layer:
+  groups:
+    - group: FaultHandler
+      files:
+        - file: ./common_app_utils/fault_handler/fault_handler.c
+  
+  add-path:
+    - ./common_app_utils/fault_handler

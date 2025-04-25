@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/tools/projmgr/2.8.0/tools/projmgr/schemas/csolution.schema.json
+solution:
+  created-for: cmsis-toolbox@2.8.0
+  cdefault:
+
+  # List of tested compilers that can be selected
+  select-compiler:
+    - compiler: AC6
+    - compiler: GCC
+
+  # Select used compiler
+  compiler: AC6
+
+  packs:
+    - pack: AlifSemiconductor::Ensemble@1.3.3
+    - pack: ARM::CMSIS@6.0.0
+    - pack: ARM::CMSIS-DSP@1.16.2
+    - pack: ARM::CMSIS-NN@7.0.0
+    - pack: ARM::CMSIS-Compiler@2.1.0
+    - pack: Arm::ethos-u-core-driver@1.24.11
+    - pack: tensorflow::tensorflow-lite-micro@1.24.11
+    - pack: tensorflow::flatbuffers@1.24.11
+    - pack: tensorflow::gemmlowp@1.24.11
+    - pack: tensorflow::kissfft@1.24.11
+    - pack: tensorflow::ruy@1.24.11
+
+  target-types:
+    - type: HE
+      device: Alif Semiconductor::AE722F80F55D5LS:M55_HE
+      define:
+        - "CORE_M55_HE"
+    - type: HP
+      device: Alif Semiconductor::AE722F80F55D5LS:M55_HP
+      define:
+        - "CORE_M55_HP"
+
+  build-types:
+    - type: debug
+      optimize: none
+      debug: on
+      define:
+        - _DEBUG
+    - type: debug-release
+      optimize: speed
+      debug: on
+    - type: release
+      optimize: speed
+      debug: off
+
+  define:
+    - UNICODE
+    - _UNICODE
+
+  projects:
+    - project: src/bare_metal/bare_metal.cproject.yml
+    - project: src/dotp_tests/dotp_tests.cproject.yml
+    - project: src/helium_instructions/helium_instructions.cproject.yml
+    - project: src/gemm_tests/gemm_tests.cproject.yml
+    - project: src/stream_benchmark/stream_benchmark.cproject.yml
+    - project: src/tflm_test/tflm_test.cproject.yml
+    - project: src/jit_test/jit_test.cproject.yml
+    - project: src/check_features/check_features.cproject.yml

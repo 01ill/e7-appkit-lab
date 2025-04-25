@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/tools/projmgr/2.8.0/tools/projmgr/schemas/clayer.schema.json
+
+# This layer provides the Segger RTT Library
+# This is needed in all applications when the RTT Output is used
+
+layer:
+  groups:
+    - group: SEGGER_RTT
+      files:
+        - file: ./segger_rtt/RTT/SEGGER_RTT.c
+        - file: ./segger_rtt/RTT/SEGGER_RTT_printf.c
+        - file: ./segger_rtt/Syscalls/SEGGER_RTT_Syscalls_GCC.c
+          for-compiler: GCC
+        - file: ./segger_rtt/Syscalls/SEGGER_RTT_Syscalls_KEIL.c
+          for-compiler: AC6
+        - file: ./segger_rtt/Syscalls/SEGGER_RTT_Syscalls_IAR.c
+          for-compiler: IAR
+
+  add-path:
+    - ./segger_rtt/RTT
+    - ./segger_rtt/Config
+    # - ./common_app_utils/logging

@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/tools/projmgr/2.8.0/tools/projmgr/schemas/clayer.schema.json
+
+# This layer provides the Benchmark and Timing Library
+# This is needed in all applications when the Clock is needed or benchmarks are executed
+
+layer:
+  groups:
+    - group: Timing
+      files:
+        - file: ./timing/timing.cpp
+        - file: ./timing/benchmark.cpp
+
+  add-path:
+    - ./timing

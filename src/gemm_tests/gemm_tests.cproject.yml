@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/tools/projmgr/2.6.0/tools/projmgr/schemas/cproject.schema.json
+project:
+  groups:
+    - group: App
+      files:
+        - file: main.cpp
+        - file: gemm_4x6.s
+        - file: gemm_4x4.s
+        - file: gemm_asm_4x4.s
+        - file: gemm_asm_4x6.s
+        - file: gemm_asm_4x7.s
+
+  output:
+    base-name: $Project$
+    type:
+      - elf
+      - bin
+      - hex
+
+  layers:
+    - layer: ../../libs/alif/board.clayer.yml
+    - layer: ../../libs/device/alif-device.clayer.yml
+    - layer: ../../libs/fault-handler.clayer.yml
+    - layer: ../../libs/rtt.clayer.yml
+    - layer: ../../libs/timing.clayer.yml
+
+  components:
+    - component: ARM::CMSIS:DSP
+
+  define:
+    - USE_CMSIS_DSP

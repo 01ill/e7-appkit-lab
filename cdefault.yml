@@ -1,0 +1,59 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/tools/projmgr/2.6.0/tools/projmgr/schemas/cdefault.schema.json
+default:
+  misc:
+    - for-compiler: GCC
+      C:
+        - -std=c11
+        - -fdata-sections
+        - -flax-vector-conversions
+        - -Wall
+        - -Wextra
+        - -Wpedantic
+      CPP:
+        - -std=c++23
+        - -fdata-sections
+        - -flax-vector-conversions
+        - -fstack-usage
+        - -Wstack-usage=8KB
+        - -Wall
+        - -Wextra
+        - -Wpedantic
+      Link:
+        - --specs=nosys.specs
+        - --entry=Reset_Handler
+        - -Wl,-Map=linker.map,--cref,-print-memory-usage,--gc-sections,--no-warn-rwx-segments
+        # generate linker map
+        # output a cross reference table
+        # print memory usage to console
+        # exclude unused sections from the iamge
+        # suppress executable write segment warnings (used for ITCM)
+      Library:
+        - -lm -lc -lgcc
+
+    - for-compiler: AC6
+      C-CPP:
+        - -gdwarf-5
+        - -fdata-sections
+        - -Wno-license-management
+        - -pedantic
+        - -Wall
+        - -Wextra
+        - -Wpedantic
+        #- -Weverything
+      C:
+        - -std=c11
+      CPP:
+        - -std=c++23
+        - -fdata-sections
+        - -fno-exceptions
+        - -ffast-math
+      Link:
+        - --entry=Reset_Handler
+        - --map
+        - --verbose
+        - -v
+        - --info=architecture,sizes,totals,unused,summarysizes,stack,summarystack
+        - --diag_suppress=L6312W,L6314W
+        - --callgraph
+        - --list=memory_usage.txt
+        #- --datacompressor=off

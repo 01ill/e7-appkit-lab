@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/tools/projmgr/2.6.0/tools/projmgr/schemas/cproject.schema.json
+project:
+  groups:
+    - group: App
+      files:
+        - file: main.cpp
+        - file: dotp_mve.s
+        - file: dotp_scalar.s
+
+  output:
+    base-name: $Project$
+    type:
+      - elf
+      - bin
+      - hex
+
+  layers:
+    - layer: ../../libs/alif/board.clayer.yml
+    - layer: ../../libs/device/alif-device.clayer.yml
+    - layer: ../../libs/fault-handler.clayer.yml
+    - layer: ../../libs/rtt.clayer.yml
+    - layer: ../../libs/timing.clayer.yml
