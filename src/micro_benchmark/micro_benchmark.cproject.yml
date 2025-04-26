@@ -28,3 +28,4 @@ project:
     - layer: ../../libs/fault-handler.clayer.yml
     - layer: ../../libs/rtt.clayer.yml
     - layer: ../../libs/timing.clayer.yml
+    - layer: ../../libs/stubs.clayer.yml

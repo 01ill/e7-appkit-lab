@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/tools/projmgr/2.8.0/tools/projmgr/schemas/clayer.schema.json
+
+# This layer provides Stubs for GCC
+# GCC has problems linking functions from the standard library as they are not needed in embedded systems
+# empty functions are provided so that GCC won't display errors
+
+layer:
+  groups:
+    - group: Stubs
+      files:
+        - file: ./stdlib_stubs/stdlib_stubs.c
+          for-compiler: GCC
+
+  add-path:
+    - ./stdlib_stubs
