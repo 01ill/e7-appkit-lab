@@ -6,6 +6,7 @@
 layer:
   groups:
     - group: Board
+      warnings: off
       files:
         # - file: ../board/devkit_gen2/board_init.c # not needed because only the appkit is used
         - file: ../board/appkit_gen2/board_init.c
