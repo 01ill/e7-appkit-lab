@@ -3,9 +3,14 @@ project:
   groups:
     - group: App
       files:
-        - file: stream.cpp
+        - file: micro_benchmark.cpp
         - file: stream_asm.s
         - file: flops_asm.s
+
+  define:
+    - OPERATIONAL_INTENSITY: 100
+  define-asm:
+    - OPERATIONAL_INTENSITY: 100
 
   output:
     base-name: $Project$
