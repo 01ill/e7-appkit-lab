@@ -2,6 +2,18 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Run JIT Tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/jit_test/tests/build/jit_test",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb"
+        },
+        {
             "name": "Alif Ensemble Debug (Cortex-Debug)",
             "cwd": "${workspaceFolder}",
             "executable": "${command:cmsis-csolution.getBinaryFile}",

@@ -2,6 +2,49 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "prepare build-jit-test",
+            "type": "shell",
+            "command": "cmake -S src/jit_test/tests -B src/jit_test/tests/build",
+            "problemMatcher": []
+        },
+        {
+            "label": "build-jit-test",
+            "type": "shell",
+            "command": "cmake --build src/jit_test/tests/build --target jit_test",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "dependsOn": [
+                "prepare build-jit-test"
+            ]
+        },
+        {
+            "label": "run jit-test tests",
+            "type": "shell",
+            "command": "ctest --test-dir src/jit_test/tests/build  --rerun-failed --output-on-failure",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "dependsOn": [
+                "build-jit-test"
+            ]
+        },
+        {
             "type": "cmsis-csolution.build",
             "solution": "${command:cmsis-csolution.getSolutionPath}",
             "rebuild": false,

@@ -1,12 +1,9 @@
 #include "generators/PeakPerformance.hpp"
-#include "Triad.hpp"
 #include "instructions/Base.hpp"
 #include "instructions/DataProcessing.hpp"
 #include "instructions/Vector.hpp"
+#include <cassert>
 #include <cstdint>
-
-#include "SEGGER_RTT.h"
-#include <cstdio>
 
 void (*JIT::Generators::PeakPerformance::generate(uint32_t operational_intensity)) (float const * a, float const * b, float * c, float const scalar, uint32_t size) {
     backend.resetKernel();
@@ -25,7 +22,7 @@ void (*JIT::Generators::PeakPerformance::generate(uint32_t operational_intensity
     // vldrw.f32 q0, [r0], #16
     backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R0, 4, false, true, 0));
     // vldrw.f32 q0, [r1], #16
-    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R1, 4, false, true, 0));
+    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q1, Instructions::R1, 4, false, true, 0)); // TODO
 
     // generate according to operational intensity
     for (uint32_t i = 0; i < operational_intensity; i++) {
@@ -174,6 +171,63 @@ void (*JIT::Generators::PeakPerformance::generateStepsNoMem(float operational_in
 
     // vstrw.f32 q2, [r2]
     // backend.addInstruction(Instructions::Vector::vstrw(Instructions::Q2, Instructions::R2, 0, false, false, false));
+
+    // letp lr, -> branch to dlstpStart
+    backend.addInstruction(Instructions::Base::letp(backend.getBranchOffset(dlstpStart) + 2));
+
+    // pop r4
+    backend.addInstruction(Instructions::DataProcessing::pop(Instructions::R4));
+    // pop {pc}
+    backend.addInstruction(Instructions::DataProcessing::pop(Instructions::PC));
+
+    __asm("dsb");
+    __asm("isb");
+
+    return reinterpret_cast<Func>(backend.getThumbAddress());
+}
+
+void (*JIT::Generators::PeakPerformance::generate(uint32_t flopsPerByte, uint32_t vectorCount)) (float const * a, float const * b, float * c, float const scalar, uint32_t size) {
+    backend.resetKernel();
+
+    // push {lr}
+    backend.addInstruction(Instructions::DataProcessing::push(Instructions::LR));
+    // push r4
+    backend.addInstruction(Instructions::DataProcessing::push(Instructions::R4));
+    // vmov.f32 r4, s0
+    backend.addInstruction(Instructions::Vector::vmovGPxScalar(true, Instructions::S0, Instructions::R4));
+
+    // dlstp
+    Instructions::Instruction16 * dlstpStart = backend.addBranchInstruction(Instructions::Base::dlstp(Instructions::Register::R3, Instructions::Size32));
+
+    // vldrw.f32 q0, [r0], #16
+    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R0, 4, false, true, 0));
+    // vldrw.f32 q0, [r1], #16
+    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q1, Instructions::R1, 4, false, true, 0)); // TODO
+
+    assert(vectorCount % 2 == 0);
+    assert(vectorCount <= 8);
+    for (uint32_t i = 0; i < vectorCount; i += 2) {
+        backend.addInstruction(Instructions::Vector::vldrw(static_cast<Instructions::VectorRegister>(i), Instructions::R0, 4, false, true, false));
+        backend.addInstruction(Instructions::Vector::vldrw(static_cast<Instructions::VectorRegister>(i+1), Instructions::R1, 4, false, true, false));
+    }
+
+    // 1 vector = 128 Bit = 16 Byte i.e. for each vector we need flopsPerByte * 16 flops and we progress in 2 vector steps
+    // each vfma instruction has 8 flops, so we need 2 vfma instructions for each vector so for an 2 vector step we need 4 instructions per flopsPerByte
+    // Vector Count = 2 ==> 32 Byte ==> 4 VFMA instructions
+
+    // generate according to flopsPerByte
+    uint32_t vfmaCount = vectorCount * flopsPerByte * 2;
+    for (uint32_t i = 0; i < vfmaCount; i++) {
+        backend.addInstruction(Instructions::Vector::vfma(
+            static_cast<Instructions::VectorRegister>((i + 2) % vectorCount), 
+            static_cast<Instructions::VectorRegister>((i) % vectorCount),
+            static_cast<Instructions::VectorRegister>((i + 1) % vectorCount),
+            false
+        ));
+    }
+
+    // vstrw.f32 q2, [r2]
+    // backend.addInstruction(Instructions::Vector::vstrw(Instructions::Q2, Instructions::R2, 4, false, true, false));
 
     // letp lr, -> branch to dlstpStart
     backend.addInstruction(Instructions::Base::letp(backend.getBranchOffset(dlstpStart) + 2));

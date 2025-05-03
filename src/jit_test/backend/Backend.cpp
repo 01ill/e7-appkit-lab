@@ -11,6 +11,13 @@ void JIT::Backend::addInstruction(Instructions::Instruction32 instruction) {
     instructions[instructionCount++] = static_cast<Instructions::Instruction16>(instruction); // select 16 lowest bits
 }
 
+void JIT::Backend::addHeliumInstruction(Instructions::Instruction32 instruction) {
+    if (reinterpret_cast<uintptr_t>(&instructions[instructionCount-1]) % 4 != 0) { // if not word aligned
+        addInstruction(Instructions::Base::nop());
+    }
+    addInstruction(instruction);
+}
+
 JIT::Instructions::Instruction16 * JIT::Backend::addBranchInstruction(Instructions::Instruction32 branchInstruction) {
     addInstruction(branchInstruction);
     return &instructions[instructionCount - 2]; // eingefügte Instruction war 32 Bit = 2 16 Bit Instruktions lang
@@ -28,6 +35,10 @@ int16_t JIT::Backend::getBranchOffset(Instructions::Instruction16 * instrStart) 
 
 JIT::Instructions::Instruction16 * JIT::Backend::getInstructions() {
     return instructions;
+}
+
+uint16_t JIT::Backend::getInstructionCount() {
+    return instructionCount;
 }
 
 uintptr_t JIT::Backend::getThumbAddress() const {

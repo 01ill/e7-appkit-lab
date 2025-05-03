@@ -13,7 +13,7 @@
 #include "generators/Simple.hpp"
 
 static char PRINTF_OUT_STRING[256] __attribute__((used, section(".bss.array_region_sram0")));
-constexpr uint32_t peakCount = 300000;
+constexpr uint32_t peakCount = 50000;
 static float a[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 static float b[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 static float c[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
@@ -79,6 +79,22 @@ __NO_RETURN int main() {
 		uint32_t flops = (opi * 8 * 4 * peakCount) / 4;
 		float gflops = (flops / time) / pow(10, 9);
 		printf("%d, %f\n", opi, gflops);
+	}
+
+	SEGGER_RTT_printf(0, "OperationalIntensity, VectorRegisters, GFLOPS\n");
+	for (uint32_t vecCount = 2; vecCount <= 8; vecCount += 2) {
+		for (uint32_t opi = 1; opi < 120; opi++) {
+			JIT::Generators::PeakPerformance::Func peakFunc = peakGen.generate(opi, vecCount);
+			uint32_t start = LPRTC::getInstance().getCurrentValue();
+			peakFunc(a, b, c, scalar, peakCount);
+			uint32_t end = LPRTC::getInstance().getCurrentValue();
+			// SEGGER_RTT_printf(0, "%d\n", end - start);
+	
+			float time = (float)(end - start) / 32768.0f;
+			uint32_t flops = (opi * 8 * 4 * peakCount) / 4;
+			float gflops = (flops / time) / pow(10, 9);
+			printf("%d, %d, %f\n", opi, vecCount, gflops);
+		}
 	}
 
 

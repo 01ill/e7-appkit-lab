@@ -2,20 +2,37 @@
 #include "instructions/Base.hpp"
 #include <cstdarg>
 
+
 JIT::Instructions::Instruction16 JIT::Instructions::DataProcessing::ldr(Register Rn, Register Rt) {
+    #ifdef VALIDATE_ENCODINGS
+    assert(Rn <= Register::R7);
+    assert(Rt <= Register::R7);
+    #endif
+
     Instruction16 instr = 0b0110'1000'0000'0000;
     instr |= Rt;
     instr |= Rn << 3U;
     return instr;
 }
-/*
-JIT::Instructions::Instruction32 JIT::Instructions::DataProcessing::ldr(Register Rn, Register Rt) {
-    Instruction32 instr = 0xf8d0'0000;
-    instr |= Rn << 16U;
+
+JIT::Instructions::Instruction32 JIT::Instructions::DataProcessing::ldrRegister(Register Rt,
+                                                             Register Rn,
+                                                             Register Rm,
+                                                             uint8_t imm2) {
+    Instruction32 instr = 0xf850'0000;
+
+    #ifdef VALIDATE_ENCODINGS
+    // will result in unpredictable behavior
+    assert(Rm != Register::R13, "Rm must not be SP");
+    assert(Rm != Register::R15, "Rm must not be PC");
+    #endif
+
+    instr |= Rm;
     instr |= Rt << 12U;
+    instr |= Rn << 16U;
+    instr |= (0x03 & imm2) << 4U; // Mask off Left Shift
     return instr;
 }
-*/
 
 // Low Reg Variant
 JIT::Instructions::Instruction16 JIT::Instructions::DataProcessing::str(Register Rn, Register Rt) {
