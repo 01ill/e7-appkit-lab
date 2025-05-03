@@ -132,3 +132,56 @@ flops_mve_fp32_loop:
 
 flops_mve_fp32_loop_end:
     pop {r4, pc} // return
+
+.global flops_mve_fp32_vec4
+.type flops_mve_fp32_vec4, %function
+/*
+ * r0: *a
+ * r1: *b
+ * r2: *c
+ * r3: len
+ * s0->r4: scalar
+ */
+flops_mve_fp32_vec4:
+    push {r4, lr} // save lr
+    vmov.f32 r4, s0 // scalar to r4
+    vpush {q4-q7}
+
+    vldrw.f32 q0, [r1], #16
+    vldrw.f32 q2, [r1], #16
+    vldrw.f32 q2, [r2], #16
+    vldrw.f32 q3, [r2], #16
+
+
+    wlstp.16 lr, r3, flops_mve_fp32_vec4_loop_end // start loop
+
+
+flops_mve_fp32_vec4_loop:
+    vldrw.f32 q0, [r1], #16
+    vldrw.f32 q2, [r1], #16
+
+    .rept OPERATIONAL_INTENSITY // 100 * 8 * 4 = 3200
+    vfma.f32 q4, q0, q1
+    vfma.f32 q5, q0, q1
+    vfma.f32 q4, q0, q1
+    vfma.f32 q5, q0, q1
+
+    vfma.f32 q6, q2, q3
+    vfma.f32 q7, q2, q3
+    vfma.f32 q6, q2, q3
+    vfma.f32 q7, q2, q3
+    .endr
+
+    vldrw.f32 q2, [r2], #16
+    vldrw.f32 q3, [r2], #16
+
+
+    // vstrw.f32 q0, [r0] // copy to a
+
+
+    letp lr, flops_mve_fp32_vec4_loop // check loop
+
+flops_mve_fp32_vec4_loop_end:
+    vpop {q4-q7}
+    pop {r4, pc} // return
+

@@ -6,16 +6,17 @@
 #include <cstdint>
 #include "LPRTC.hpp"
 #include "fault_handler.h"
+#include "profiling.hpp"
 #include <RTE_Components.h>
 #include CMSIS_device_header
 #include "SEGGER_RTT.h"
 
-#define USE_SRAM0
+// #define USE_SRAM0
 
 // should be minimum about 4 times of the available cache
 // with 32KB of L1d Cache -> 8192floats
 // but should also be big to ensure enough time between ticks
-static constexpr uint32_t STREAM_ARRAY_SIZE = 82400;
+static constexpr uint32_t STREAM_ARRAY_SIZE = 81000;
 static_assert(STREAM_ARRAY_SIZE % 4 == 0);
 // count of tests
 static constexpr uint32_t ITERATIONS = 15;
@@ -35,7 +36,7 @@ the following tests are executed:
 - Vector FLOPS FP16
 - Vector FLOPS FP32
 */
-static constexpr uint8_t FLOP_TEST_COUNT = 4;
+static constexpr uint8_t FLOP_TEST_COUNT = 5;
 
 # define HLINE "-------------------------------------------------------------\n"
 
@@ -59,7 +60,7 @@ static uint32_t maxtime_stream[STREAM_TEST_COUNT] = {0};
 static uint32_t mintime_stream[STREAM_TEST_COUNT] = {UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX};
 static uint32_t avgtime_flops[FLOP_TEST_COUNT] = {0};
 static uint32_t maxtime_flops[FLOP_TEST_COUNT] = {0};
-static uint32_t mintime_flops[FLOP_TEST_COUNT] = {UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX};
+static uint32_t mintime_flops[FLOP_TEST_COUNT] = {UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX};
 
 static constexpr const char* label_stream[STREAM_TEST_COUNT] = {
 	"Copy	",
@@ -80,6 +81,7 @@ static constexpr const char* label_flops[FLOP_TEST_COUNT] = {
 	"Scalar FP64",
 	"MVE FP16",
 	"MVE FP32",
+	"MVE FP32V4"
 };
 
 static constexpr uint32_t bytes[STREAM_TEST_COUNT] = {
@@ -101,6 +103,7 @@ static constexpr uint32_t flop[FLOP_TEST_COUNT] = {
 	OPERATIONAL_INTENSITY * 2 * 4 * STREAM_ARRAY_SIZE / 4, // FP32 FLOPS Scalar
 	OPERATIONAL_INTENSITY * 2 * 4 * STREAM_ARRAY_SIZE / 4, // FP64 FLOPS Scalar
 	OPERATIONAL_INTENSITY * 16 * 4 * STREAM_ARRAY_SIZE / 8, // FP16 FLOPS MVE
+	OPERATIONAL_INTENSITY * 8 * 4 * STREAM_ARRAY_SIZE / 4, // FP32 FLOPS MVE
 	OPERATIONAL_INTENSITY * 8 * 4 * STREAM_ARRAY_SIZE / 4 // FP32 FLOPS MVE
 };
 
@@ -117,10 +120,11 @@ extern "C" {
 	void flops_scalar_fp64(double * __restrict a, double * __restrict__ b, double * __restrict c, double scalar, uint32_t len);
 	void flops_mve_fp16(float16_t * __restrict a, float16_t *b, float16_t * __restrict c, float16_t scalar, uint32_t len);
 	void flops_mve_fp32(float * __restrict a, float *b, float * __restrict c, float scalar, uint32_t len);
+	void flops_mve_fp32_vec4(float * __restrict a, float *b, float * __restrict c, float scalar, uint32_t len);
 }
 
 __NO_RETURN int main() {
-	fault_dump_enable(true);
+ 	fault_dump_enable(true);
 	SEGGER_RTT_ConfigUpBuffer(0, nullptr, nullptr, 0, SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
 	LPRTC::getInstance().enable();
 
@@ -209,6 +213,10 @@ __NO_RETURN int main() {
 		times_flops[3][k] = LPRTC::getInstance().getCurrentValue();
 		flops_mve_fp32(fp32_flop_array, fp32_flop_array, fp32_flop_array, scalar, STREAM_ARRAY_SIZE);
 		times_flops[3][k] = LPRTC::getInstance().getCurrentValue() - times_flops[3][k];
+
+		times_flops[4][k] = LPRTC::getInstance().getCurrentValue();
+		flops_mve_fp32_vec4(a, b, c, scalar, STREAM_ARRAY_SIZE);
+		times_flops[4][k] = LPRTC::getInstance().getCurrentValue() - times_flops[4][k];
 	}
 
 	/* Calculate the STREAM results */
@@ -286,6 +294,11 @@ __NO_RETURN int main() {
 	SEGGER_RTT_printf(0, HLINE);
 	
 
+	setupProfiling();
+	startCounting();
+	stream_triad_mve(a, b, c, scalar, STREAM_ARRAY_SIZE);
+	stopCounting();
+	printCounter();
 	LPRTC::getInstance().disable();
 	while (1) {
 		__WFE();
