@@ -4,6 +4,7 @@ project:
     - group: App
       files:
         - file: main.cpp
+        - file: instructions.s
 
   output:
     base-name: $Project$
@@ -17,3 +18,4 @@ project:
     - layer: ../../libs/device/alif-device.clayer.yml
     - layer: ../../libs/fault-handler.clayer.yml
     - layer: ../../libs/rtt.clayer.yml
+    - layer: ../../libs/timing.clayer.yml

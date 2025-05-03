@@ -9,6 +9,7 @@ layer:
       files:
         - file: ./timing/timing.cpp
         - file: ./timing/benchmark.cpp
+        - file: ./timing/profiling.cpp
 
   add-path:
     - ./timing

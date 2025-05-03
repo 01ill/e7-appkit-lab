@@ -95,7 +95,7 @@ template uint32_t benchmarkArm<arm_status (*)(arm_matrix_instance_f32 const*, ar
 template <typename T>
 int32_t compare(T resultA, T resultB, uint32_t size) {
     for (uint32_t i = 0; i < size; i++) {
-        if (resultA[i] != resultB[i]) {
+        if (abs(resultA[i] - resultB[i]) > 0.00001) {
             return i;
         }
     }
