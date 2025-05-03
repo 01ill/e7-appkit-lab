@@ -16,7 +16,7 @@ q4: A-Register
 */
 gemm_asm_4x4:
     push {r4-r12, lr}
-    vpush {q4} // save q4
+    vpush {q4, q5} // save q4
 
     mov r10, r0 // store base a
     mov r11, r1 // store base b
@@ -62,15 +62,15 @@ gemm_asm_4x4_loop: // 32flops * 16
     vldrw.f32 q4, [r0]
     add r0, r0, r3, lsl #2 // Einmal Länge aufaddieren
 
-    /*ldr r9, [r7], #4 // load b[2len]
+    ldr r9, [r7], #4 // load b[2len]
     ldr r10, [r8], #4
     ldr r11, [r6], #4 // load b[len]
-    ldr r12, [r1], #4 // load b[0]*/
-    vldrw.f32 q7, [r1], #16
-    vfma.f32 q2, q4, q7
-    vfma.f32 q3, q4, q7
-    vfma.f32 q1, q4, q7
-    vfma.f32 q0, q4, q7
+    ldr r12, [r1], #4 // load b[0]
+    // vldrw.f32 q5, [r1], #16
+    vfma.f32 q2, q4, q5
+    vfma.f32 q3, q4, q5
+    vfma.f32 q1, q4, q5
+    vfma.f32 q0, q4, q5
 
     le lr, gemm_asm_4x4_loop
 
@@ -89,5 +89,5 @@ gemm_loop_i_end:
     b gemm_loop_j
 
 gemm_loop_j_end:
-    vpop {q4}
+    vpop {q4, q5}
     pop {r4-r12, pc}

@@ -46,7 +46,7 @@ default:
         - -std=c++23
         - -fdata-sections
         - -fno-exceptions
-        - -ffast-math
+        #- -ffast-math
       Link:
         - --entry=Reset_Handler
         - --map

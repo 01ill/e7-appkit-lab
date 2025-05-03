@@ -9,6 +9,8 @@ project:
         - file: gemm_asm_4x4.s
         - file: gemm_asm_4x6.s
         - file: gemm_asm_4x7.s
+        - file: gemm_asm_8x3.s
+        - file: gemm_asm_24x24.s
 
   output:
     base-name: $Project$
