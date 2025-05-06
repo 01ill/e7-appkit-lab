@@ -13,7 +13,7 @@ void JIT::Backend::addInstruction(Instructions::Instruction32 instruction) {
 
 void JIT::Backend::addHeliumInstruction(Instructions::Instruction32 instruction) {
     if (reinterpret_cast<uintptr_t>(&instructions[instructionCount-1]) % 4 != 0) { // if not word aligned
-        addInstruction(Instructions::Base::nop());
+        addInstruction(Instructions::Base::nop16());
     }
     addInstruction(instruction);
 }

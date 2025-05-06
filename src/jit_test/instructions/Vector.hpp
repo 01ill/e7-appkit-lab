@@ -17,6 +17,10 @@ class JIT::Instructions::Vector {
          * @param toGP If True moves data to the GP Register, else to the FP-Scalar Register
         */
         static Instruction32 vmovGPxScalar(bool toGP, FloatRegister Vn, Register Rt);
+
+        static Instruction32 vmovImmediate(VectorRegister Qd, uint8_t imm8, DataType dt);
+        static Instruction32 vmovRegister(VectorRegister Qd, VectorRegister Qm);
+
         static Instruction32 vldrw(VectorRegister Qd, Register Rn, uint8_t imm, bool preIndexed, bool writeBack, bool subtractImm);
         static Instruction32 vstrw(VectorRegister Qd, Register Rn, uint8_t imm, bool preIndexed, bool writeBack, bool subtractImm);
 

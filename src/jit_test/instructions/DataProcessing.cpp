@@ -1,9 +1,9 @@
 #include "DataProcessing.hpp"
 #include "instructions/Base.hpp"
 #include <cstdarg>
+#include <cassert>
 
-
-JIT::Instructions::Instruction16 JIT::Instructions::DataProcessing::ldr(Register Rn, Register Rt) {
+JIT::Instructions::Instruction16 JIT::Instructions::DataProcessing::ldrRegister16(Register Rn, Register Rt, Register Rm) {
     #ifdef VALIDATE_ENCODINGS
     assert(Rn <= Register::R7);
     assert(Rt <= Register::R7);
@@ -15,7 +15,7 @@ JIT::Instructions::Instruction16 JIT::Instructions::DataProcessing::ldr(Register
     return instr;
 }
 
-JIT::Instructions::Instruction32 JIT::Instructions::DataProcessing::ldrRegister(Register Rt,
+JIT::Instructions::Instruction32 JIT::Instructions::DataProcessing::ldrRegister32(Register Rt,
                                                              Register Rn,
                                                              Register Rm,
                                                              uint8_t imm2) {
@@ -23,8 +23,8 @@ JIT::Instructions::Instruction32 JIT::Instructions::DataProcessing::ldrRegister(
 
     #ifdef VALIDATE_ENCODINGS
     // will result in unpredictable behavior
-    assert(Rm != Register::R13, "Rm must not be SP");
-    assert(Rm != Register::R15, "Rm must not be PC");
+    assert(Rm != Register::R13);
+    assert(Rm != Register::R15);
     #endif
 
     instr |= Rm;
@@ -42,7 +42,7 @@ JIT::Instructions::Instruction16 JIT::Instructions::DataProcessing::str(Register
     return instr;
 }
 
-JIT::Instructions::Instruction16 JIT::Instructions::DataProcessing::mov(Register Rd, uint8_t imm8) {
+JIT::Instructions::Instruction16 JIT::Instructions::DataProcessing::movImmediate16(Register Rd, uint8_t imm8) {
     Instruction16 instr = 0b0010'0000'0000'0000;
     instr |= imm8;
     instr |= Rd << 8U;

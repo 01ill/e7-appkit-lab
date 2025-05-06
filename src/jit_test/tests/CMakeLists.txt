@@ -10,14 +10,18 @@ enable_testing()
 
 add_executable(jit_test 
     test_Backend.cpp
-    test_Instructions.cpp
+    test_DataProcessingInstructions.cpp
+    test_BaseInstructions.cpp
+    test_ArithmeticInstructions.cpp
     catch2/catch_amalgamated.cpp
     ../instructions/DataProcessing.cpp
+    ../instructions/Arithmetic.cpp
     ../instructions/Base.cpp
     ../instructions/Vector.cpp
     ../backend/Backend.cpp
     )
 target_include_directories(jit_test PRIVATE ../) # add jit_test root path
 target_link_libraries(jit_test)
+target_compile_definitions(jit_test PRIVATE VALIDATE_ENCODINGS)
 
 add_test(NAME jit_test COMMAND jit_test)
