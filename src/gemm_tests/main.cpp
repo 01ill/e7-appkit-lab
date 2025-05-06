@@ -31,11 +31,14 @@
 static char PRINTF_OUT_STRING[256] __attribute__((used, section(".bss.array_region_sram0")));
 
 
-static constexpr uint32_t arrayMaxSize = 24;
-static float32_t bigA[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
-static float32_t bigB[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
-static float32_t bigC[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
-static float32_t bigCRef[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
+static constexpr uint32_t arrayMaxSize = 72;
+static constexpr uint32_t M = 72;
+static constexpr uint32_t K = 72;
+static constexpr uint32_t N = 72;
+static float32_t bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
+static float32_t bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
+static float32_t bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
+static float32_t bigCRef[M*N] __attribute__((used, section(".bss.array_region_sram0")));
 static float32_t packedA[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
 static float32_t packedB[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
 
@@ -285,6 +288,21 @@ float32_t frame_gemm_8x3(const float32_t * __restrict__ a, const float32_t * __r
     return c[0];
 }
 
+float32_t frame_gemm_24x24(const float32_t * __restrict__ a, const float32_t * __restrict__ b, float32_t * __restrict__ c, const uint32_t len) {
+    for (uint32_t j = 0; j < len; j+= 24) {
+        for (uint32_t i = 0; i < len; i += 24) {
+            gemm_asm_24x24(&a[i], &b[j * len], &c[j * len + i], len);
+        }
+    }
+    return c[0];
+}
+
+void initMatrices(float32_t * a, float32_t * b, float32_t * c) {
+    for (uint32_t i = 0; i < M*K; i++) a[i] = i;
+    for (uint32_t i = 0; i < K*N; i++) b[i] = i;
+    for (uint32_t i = 0; i < M*N; i++) c[i] = 0;
+}
+
 __NO_RETURN int main (void) {
     fault_dump_enable(true);
     SEGGER_RTT_ConfigUpBuffer(0, nullptr, nullptr, 0, SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
@@ -392,7 +410,7 @@ __NO_RETURN int main (void) {
     //     sprintf(PRINTF_OUT_STRING, "GEMM CM 8x3 ASM %dx%d (%d): %f, %f, %f\r\n", i, i, time, bigC[0], result, gflops);
     //     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
-    //     for (uint32_t j = 0; j < i*i; j++) {
+    //     /*for (uint32_t j = 0; j < i*i; j++) {
     //         bigA[j] = j;
     //         bigB[j] = j;
     //         bigC[j] = 0;
@@ -406,7 +424,7 @@ __NO_RETURN int main (void) {
     //     time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     //     gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
     //     sprintf(PRINTF_OUT_STRING, "GEMM CM 8x3 Microkernel %dx%d (%d): %f, %f, %f\r\n", i, i, time, bigC[0], result, gflops);
-    //     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
+    //     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);*/
 
     //     for (uint32_t j = 0; j < i*i; j++) {
     //         bigA[j] = j;
@@ -423,18 +441,41 @@ __NO_RETURN int main (void) {
     //     gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
     //     sprintf(PRINTF_OUT_STRING, "GEMM CM 8x3 Intrinsics %dx%d (%d): %f, %f, %f\r\n", i, i, time, bigC[0], result, gflops);
     //     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
+
+    //     for (uint32_t j = 0; j < i*i; j++) {
+    //         bigA[j] = j;
+    //         bigB[j] = j;
+    //         bigC[j] = 0;
+    //     }
+    //     start = RTC_Clock::now();
+    //     for (uint32_t j = 0; j < iterations; j++) {
+    //         frame_gemm_24x24(bigA, bigB, bigC, i);
+    //     }
+    //     end = RTC_Clock::now();
+
+    //     time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    //     gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
+    //     sprintf(PRINTF_OUT_STRING, "GEMM CM 24x24 Frame %dx%d (%d): %f, %f, %f\r\n", i, i, time, bigC[0], result, gflops);
+    //     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
+
     //     //iterations = iterations >> 2U; // Iterationen müssen weniger werden, sonst rechnet der nie fertig
     //     iterations >>= 1U;
     // }
     // SEGGER_RTT_printf(0, "Fertig!\n"); 
-    uint32_t flops = iterations * 2 * pow(arrayMaxSize,3);
+    uint32_t flops = iterations * 2 * M * K * N;
 
 
-    for (uint32_t j = 0; j < arrayMaxSize*arrayMaxSize; j++) {
-        bigA[j] = j;
-        bigB[j] = j;
-        bigC[j] = 0;
-    }
+    initMatrices(bigA, bigB, bigC);
+    arm_mat_init_f32(&armA, M, K, bigA);
+    arm_mat_init_f32(&armB, K, N, bigB);
+    arm_mat_init_f32(&armC, M, N, bigC);
+
+    time = benchmarkArm(arm_mat_mult_f32, iterations, &status, &armA, &armB, &armC);
+    gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
+    sprintf(PRINTF_OUT_STRING, "CMSIS-DSP %dx%dx%d (%d): %f, %f, %f\r\n", M, K, N, time, bigC[0], result, gflops);
+    SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
+
+    initMatrices(bigA, bigB, bigC);
     RTC_Clock::time_point start = RTC_Clock::now();
     for (uint32_t j = 0; j < iterations; j++) {
         gemm_asm_8x3(bigA, bigB, bigC, arrayMaxSize);
@@ -443,36 +484,28 @@ __NO_RETURN int main (void) {
 
     time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
-    sprintf(PRINTF_OUT_STRING, "GEMM CM 8x3 ASM %dx%d (%d): %f, %f, %f\r\n", arrayMaxSize, arrayMaxSize, time, bigC[0], result, gflops);
+    sprintf(PRINTF_OUT_STRING, "GEMM CM 8x3 ASM %dx%dx%d (%d): %f, %f, %f\r\n", M, K, N, time, bigC[0], result, gflops);
     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
-    for (uint32_t j = 0; j < arrayMaxSize*arrayMaxSize; j++) {
-        bigA[j] = j;
-        bigB[j] = j;
-        bigC[j] = 0;
-    }
+    initMatrices(bigA, bigB, bigC);
     start = RTC_Clock::now();
     for (uint32_t j = 0; j < iterations; j++) {
-        gemm_asm_24x24(bigA, bigB, bigC, arrayMaxSize);
+        gemm_asm_24x24(bigA, bigB, bigC, K);
     }
     end = RTC_Clock::now();
     setupProfilingMVEStalls();
     startCounting();
-    gemm_asm_24x24(bigA, bigB, bigC, arrayMaxSize);
+    gemm_asm_24x24(bigA, bigB, bigC, K);
     stopCounting();
     printCounter();
 
     time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
-    sprintf(PRINTF_OUT_STRING, "GEMM CM 24x24 ASM %dx%d (%d): %f, %f, %f\r\n", arrayMaxSize, arrayMaxSize, time, bigC[0], result, gflops);
+    sprintf(PRINTF_OUT_STRING, "GEMM CM 24x24 ASM %dx%dx%d (%d): %f, %f, %f\r\n", M, K, N, time, bigC[0], result, gflops);
     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
 
-    for (uint32_t j = 0; j < arrayMaxSize*arrayMaxSize; j++) {
-        bigA[j] = j;
-        bigB[j] = j;
-        bigC[j] = 0;
-    }
+    initMatrices(bigA, bigB, bigC);
     start = RTC_Clock::now();
     for (uint32_t j = 0; j < iterations; j++) {
         gemm_cm_dot_unroll8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(bigA, bigB, bigC, arrayMaxSize);
@@ -481,7 +514,7 @@ __NO_RETURN int main (void) {
 
     time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
-    sprintf(PRINTF_OUT_STRING, "GEMM CM 8x3 Intrinsics %dx%d (%d): %f, %f, %f\r\n", arrayMaxSize, arrayMaxSize, time, bigC[0], result, gflops);
+    sprintf(PRINTF_OUT_STRING, "GEMM CM 8x3 Intrinsics %dx%dx%d (%d): %f, %f, %f\r\n", M, K, N, time, bigC[0], result, gflops);
     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 /*
 
@@ -570,7 +603,7 @@ __NO_RETURN int main (void) {
     
     }
 */
-    for (uint32_t j = 0; j < arrayMaxSize*arrayMaxSize; j++) {
+    for (uint32_t j = 0; j < M*K; j++) {
         bigA[j] = j;
         bigB[j] = j;
         bigC[j] = 0;

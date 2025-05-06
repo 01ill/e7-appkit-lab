@@ -42,20 +42,13 @@ gemm_loop_j:
     @ sub r4, r4, #0x4 // next tile
     @ cbz r4, gemm_loop_j_end
     mov r5, #0 // i counter
+    sub r6, r3, #2
 
 gemm_loop_i:
     cmp r5, r3
     bge gemm_loop_i_end
     @ sub r5, r5, #0x4 // next tile
     @ cbz r5, gemm_loop_i_end
-
-    mov r6, #0.0
-    vmov.i32 q0, #0.0
-    vorr.f32 q1, q0, q0
-    vdup.32 q2, r6
-    vorr.f32 q3, q0, q0
-    vdup.32 q4, r6
-    vorr.f32 q5, q0, q0
 
     /* Tile Pointer berechnen */
     // a[i]
@@ -67,10 +60,33 @@ gemm_loop_i:
     add r2, r12, r2, lsl #2 // c + j*len*4
     add r2, r2, r5, lsl #2 // c + i*4
 
+    ldr.w r7, [r1, r3, lsl #2] // load b[len]
+    ldr.w r8, [r1, r3, lsl #3] // load b[2len]
+    ldr.w r9, [r1], #4 // load b[0] and write back for next k
+    vmov.i32 q5, #0         // [INIT ACCUMULATOR] c[2,1]
+    vldrw.f32 q6, [r0]      // [LOOP K PRE] load next A[0]
+    vorr.f32 q0, q5, q5     // [INIT ACCUMULATOR] c[0,0]
+    vfma.f32 q0, q6, r9     // [LOOP K PRE] calculate c[0,0]
+    vorr.f32 q1, q5, q5         // [INIT ACCUMULATOR] c[0,1]
+    vldrw.f32 q7, [r0, #16] // [LOOP K PRE] load next A[1]
+    vfma.f32 q1, q7, r9     // [LOOP K PRE] calculate c[0,1]
+    vorr.f32 q2, q5, q5         // [INIT ACCUMULATOR] c[1,0]
+    vfma.f32 q2, q6, r7     // [LOOP K PRE] calculate c[1,0]
+    vorr.f32 q3, q5, q5         // [INIT ACCUMULATOR] c[1,1]
+    vfma.f32 q3, q7, r7     // [LOOP K PRE] calculate c[1,1]
+    vorr.f32 q4, q5, q5         // [INIT ACCUMULATOR] c[2,0]
+    vfma.f32 q4, q6, r8     // [LOOP K PRE] calculate c[2,0]
+    add.w r0, r0, r3, lsl #2 // Einmal Länge aufaddieren (next k)
+    vldrw.f32 q6, [r0]  // [LOOP K BEFORE] load next A[0]
+    vfma.f32 q5, q7, r8     // [LOOP K PRE] calculate c[2,1]
+    ldr r7, [r1, #96]// [LOOP K BEFORE] load b[len]
+    //ldr r8, [r1, r3] // [LOOP K] load b[2len]
+    ldr r8, [r1, #192] // [LOOP K PRE] load b[2len]
+
     /* Init Accumulator Block */
     //vdup.32 q0, r6 // Initialize Accumulator Block
     // mul r9, r3, #6 // k loop wird 6*k ausgeführt. Damit wird nur ein Pointer auf b genutzt
-    wls lr, r3, gemm_asm_8x3_end // loop over k; jump to end if no elements left
+    dls lr, r6 // loop over k; jump to end if no elements left
 
 /*
 Operational Intensity:
@@ -82,33 +98,42 @@ Operational Intensity:
  */
  .p2align 2
 gemm_asm_8x3_loop: // 32flops * 16 
-    /* Load A */
-    vldrw.f32 q6, [r0]
-
-    /* Load B */
-    ldr.w r7, [r1, r3, lsl #2] // load b[len]
-    vfma.f32 q2, q6, r7
-    ldr.w r8, [r1, r3, lsl #3] // load b[2len]
-    vfma.f32 q4, q6, r8
-    ldr.w r9, [r1], #4 // load b[0] and write back for next k
-    vfma.f32 q0, q6, r9
-    vldrw.f32 q7, [r0, #16]
-    vfma.f32 q3, q7, r7
-    vfma.f32 q5, q7, r8
+    vfma.f32 q2, q6, r7     // [LOOP K] calculate c[1,0]
+    ldr r9, [r1], #4        // [LOOP K] load b[0] and write back for next k
+    //ldr r8, [r1, #192] // [LOOP K] load b[2len]
+    vfma.f32 q4, q6, r8     // [LOOP K] calculate c[2,0]
+    vfma.f32 q0, q6, r9     // [LOOP K] calculate c[0,0]
+    vldrw.f32 q7, [r0, #16] // [LOOP K] load next a[1]
+    vfma.f32 q1, q7, r9     // [LOOP K] calculate c[0,1]
     add.w r0, r0, r3, lsl #2 // Einmal Länge aufaddieren (next k)
-    vfma.f32 q1, q6, r9
+    vfma.f32 q3, q7, r7     // [LOOP K] calculate c[1,1]
+    vldrw.f32 q6, [r0]      // [LOOP K NEXT] load next a[0]
+    vfma.f32 q5, q7, r8     // [LOOP K] calculate c[2,1]
+
+    ldr r7, [r1, r3, lsl #2] // [LOOP K NEXT] load b[len]
+    //ldr r8, [r1, r3] // [LOOP K] load b[2len]
+    ldr r8, [r1, r3, lsl #3] // [LOOP K PRE] load b[2len]
 
     le lr, gemm_asm_8x3_loop
 
 gemm_asm_8x3_end:
-    vstrw.f32 q0, [r2] // store c[0:3]
+    ldr.w r9, [r1], #4 // load b[0] and write back for next k
+    vfma.f32 q1, q6, r9
+    vldrw.f32 q7, [r0, #16]
+    vfma.f32 q0, q6, r9
     vstrw.f32 q1, [r2, #16] // store c[4:7]
+    vfma.f32 q2, q6, r7
+    vstrw.f32 q0, [r2] // store c[0:3]
+    vfma.f32 q3, q7, r7
     add r2, r2, r3, lsl #2
+    vfma.f32 q4, q6, r8
     vstrw.f32 q2, [r2] // store c[2len]
+    vfma.f32 q5, q7, r8
     vstrw.f32 q3, [r2, #16] // store c[2len+1]
     add r2, r2, r3, lsl #2
     vstrw.f32 q4, [r2] // store c[3len]
     vstrw.f32 q5, [r2, #16] // store c[5len]
+    // add.w r0, r0, r3, lsl #2 // Einmal Länge aufaddieren (next k)
 
     add r5, r5, #8
     b gemm_loop_i
