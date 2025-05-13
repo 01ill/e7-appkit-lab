@@ -57,3 +57,19 @@ TEST_CASE("ADD Register (T3) encodes correctly", "[ADD]") {
         REQUIRE(Arithmetic::addRegister32(R11, R11, R3, LSL, 2) == 0xeb0b'0b83);
     }
 }
+
+
+TEST_CASE("MUL encodes correctly", "[MUL]") {
+    SECTION("Test 1 - 16bit") {
+        REQUIRE(Arithmetic::mul16(R2, R3) == 0x435a);
+        REQUIRE(Arithmetic::mul16(R7, R6) == 0x4377);
+    }
+    SECTION("validate errors - 16bit") {
+        REQUIRE(Arithmetic::mul16(R7, R8) == Base::nop16());
+        REQUIRE(Arithmetic::mul16(R8, R7) == Base::nop16());
+    }
+    SECTION("Test 2 - 32bit") {
+        REQUIRE(Arithmetic::mul32(R7, R8, R9) == 0xfb08'f709);
+        REQUIRE(Arithmetic::mul32(R10, R11, R12) == 0xfb0b'fa0c);
+    }
+}

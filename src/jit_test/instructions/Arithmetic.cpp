@@ -3,7 +3,9 @@
 #include <cassert>
 #include <cstdint>
 
-JIT::Instructions::Instruction16 JIT::Instructions::Arithmetic::addImmediate16(Register Rd, Register Rn, uint8_t imm3) {
+using namespace JIT::Instructions;
+
+Instruction16 Arithmetic::addImmediate16(Register Rd, Register Rn, uint8_t imm3) {
     #ifdef VALIDATE_ENCODINGS
     assert(Rn <= Register::R7);
     assert(Rd <= Register::R7);
@@ -17,7 +19,7 @@ JIT::Instructions::Instruction16 JIT::Instructions::Arithmetic::addImmediate16(R
     return instr;
 }
 
-JIT::Instructions::Instruction16 JIT::Instructions::Arithmetic::addImmediate16(Register Rdn, uint8_t imm8) {
+Instruction16 Arithmetic::addImmediate16(Register Rdn, uint8_t imm8) {
     #ifdef VALIDATE_ENCODINGS
     assert(Rdn <= Register::R7);
     #endif
@@ -29,7 +31,7 @@ JIT::Instructions::Instruction16 JIT::Instructions::Arithmetic::addImmediate16(R
 
 // imm12 = i:imm3:imm8
 // T3: encode 32bit with modified immediate constant (ignored for now -> use only T4)
-JIT::Instructions::Instruction32 JIT::Instructions::Arithmetic::addImmediate32(Register Rd, Register Rn, uint16_t imm12, bool setFlags) {
+Instruction32 Arithmetic::addImmediate32(Register Rd, Register Rn, uint16_t imm12, bool setFlags) {
     #ifdef VALIDATE_ENCODINGS
     assert(imm12 <= 4095);
     #endif
@@ -47,7 +49,11 @@ JIT::Instructions::Instruction32 JIT::Instructions::Arithmetic::addImmediate32(R
     return instr;
 }
 
-JIT::Instructions::Instruction16 JIT::Instructions::Arithmetic::addRegister16(Register Rd, Register Rn, Register Rm) {
+Instruction32 Arithmetic::addImmediate32(Register Rd, uint16_t imm12, bool setFlags) {
+    return addImmediate32(Rd, Rd, imm12, setFlags);
+}
+
+Instruction16 Arithmetic::addRegister16(Register Rd, Register Rn, Register Rm) {
     Instruction16 instr = 0x1800;
 
     instr |= Rd;
@@ -56,7 +62,7 @@ JIT::Instructions::Instruction16 JIT::Instructions::Arithmetic::addRegister16(Re
     return instr;
 }
 
-JIT::Instructions::Instruction16 JIT::Instructions::Arithmetic::addRegister16(Register Rdn, Register Rm) {
+Instruction16 Arithmetic::addRegister16(Register Rdn, Register Rm) {
     Instruction16 instr = 0x4400;
 
     instr |= 0x7 & Rdn; // set Rdn (3 lowest bits)
@@ -66,7 +72,7 @@ JIT::Instructions::Instruction16 JIT::Instructions::Arithmetic::addRegister16(Re
 }
 
 // amount = imm3:imm2
-JIT::Instructions::Instruction32 JIT::Instructions::Arithmetic::addRegister32(Register Rd, Register Rn, Register Rm, Shift shift, uint8_t amount, bool setFlags) {
+Instruction32 Arithmetic::addRegister32(Register Rd, Register Rn, Register Rm, Shift shift, uint8_t amount, bool setFlags) {
     Instruction32 instr = 0xeb00'0000;
 
     instr |= Rm;
@@ -80,6 +86,73 @@ JIT::Instructions::Instruction32 JIT::Instructions::Arithmetic::addRegister32(Re
     return instr;
 }
 
-JIT::Instructions::Instruction32 JIT::Instructions::Arithmetic::addRegister32(Register Rd, Register Rm, Shift shift, uint8_t amount, bool setFlags) {
-    return addRegister32(Rd, Rd, Rm, shift, amount);
+Instruction32 Arithmetic::addRegister32(Register Rd, Register Rm, Shift shift, uint8_t amount, bool setFlags) {
+    return addRegister32(Rd, Rd, Rm, shift, amount, setFlags);
+}
+
+
+Instruction16 Arithmetic::subImmediate16(Register Rd, Register Rn, uint8_t imm3) {
+    if (!Base::assertLowRegister(Rd, Rn)) {
+        Base::printValidationError("subImmediate16: Only low registers allowed - returning nop");
+        return Base::nop16();
+    }
+    if (imm3 > 7) {
+        Base::printValidationError("subImmediate16: imm3 must be <7 - returning nop");
+        return Base::nop16();
+    }
+    Instruction16 instr = 0x1e00;
+    instr |= Rd;
+    instr |= Rn << 3;
+    instr |= (0x7 & imm3) << 6;
+    return instr;
+}
+
+Instruction16 Arithmetic::subImmediate16(Register Rdn, uint8_t imm8) {
+    if (!Base::assertLowRegister(Rdn)) {
+        Base::printValidationError("subImmediate16: Only low registers allowed - returning nop");
+        return Base::nop16();
+    }
+    Instruction16 instr = 0x3800;
+    instr |= imm8;
+    instr |= Rdn << 8;
+    return instr;
+}
+
+// imm12 = i:imm3:imm8
+Instruction32 Arithmetic::subImmediate32(Register Rd, Register Rn, uint16_t imm12) {
+    if (imm12 > 4095) {
+        Base::printValidationError("subImmediate32: imm12 must be <4095 - returning nop");
+        return Base::nop32();
+    }
+    Instruction32 instr = 0xf2a0'0000;
+    instr |= 0xff & imm12; // set imm8
+    instr |= (0x7 & (imm12 >> 8)) << 12; // set imm3
+    instr |= (0x1 & (imm12 >> 11)) << 26; // set i
+    instr |= Rd << 8;
+    instr |= Rn << 16;
+    return instr;
+}
+
+Instruction32 Arithmetic::subImmediate32(Register Rdn, uint16_t imm12) {
+    return subImmediate32(Rdn, Rdn, imm12);
+}
+
+
+Instruction16 Arithmetic::mul16(Register Rdm, Register Rn) {
+    if (!Base::assertLowRegister(Rdm, Rn)) {
+        Base::printValidationError("mul16: Only low registers allowed - returning nop");
+        return Base::nop16();
+    }
+    Instruction16 instr = 0x4340;
+    instr |= Rdm;
+    instr |= Rn << 3;
+    return instr;
+}
+
+Instruction32 Arithmetic::mul32(Register Rd, Register Rn, Register Rm) {
+    Instruction32 instr = 0xfb00'f000;
+    instr |= Rm;
+    instr |= Rd << 8;
+    instr |= Rn << 16;
+    return instr;
 }

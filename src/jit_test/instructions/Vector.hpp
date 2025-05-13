@@ -21,13 +21,13 @@ class JIT::Instructions::Vector {
         static Instruction32 vmovImmediate(VectorRegister Qd, uint8_t imm8, DataType dt);
         static Instruction32 vmovRegister(VectorRegister Qd, VectorRegister Qm);
 
-        static Instruction32 vldrw(VectorRegister Qd, Register Rn, uint8_t imm, bool preIndexed, bool writeBack, bool subtractImm);
-        static Instruction32 vstrw(VectorRegister Qd, Register Rn, uint8_t imm, bool preIndexed, bool writeBack, bool subtractImm);
+        static Instruction32 vldrw(VectorRegister Qd, Register Rn, int16_t imm = 0, bool preIndexed = true, bool writeBack = false);
+        static Instruction32 vstrw(VectorRegister Qd, Register Rn, int16_t imm = 0, bool preIndexed = true, bool writeBack = false);
 
+        static Instruction32 vorr(VectorRegister Qd, VectorRegister Qn, VectorRegister Qm);
 
-        static Instruction32 vfmaVectorByScalarPlusVector(VectorRegister Qda, VectorRegister Qn, Register Rm, bool bf16);
-        static Instruction32 vfma(VectorRegister Qda, VectorRegister Qn, VectorRegister Qm, bool bf16);
+        static Instruction32 vfmaVectorByScalarPlusVector(VectorRegister Qda, VectorRegister Qn, Register Rm, bool bf16 = false);
+        static Instruction32 vfma(VectorRegister Qda, VectorRegister Qn, VectorRegister Qm, bool bf16 = false);
 };
-
 
 #endif // JIT_INSTRUCTIONS_VECTOR_HPP

@@ -62,6 +62,7 @@ class JIT::Instructions::Arithmetic {
          * Throughput: 1/1
          */
         static Instruction32 addImmediate32(Register Rd, Register Rn, uint16_t imm12, bool setFlags = false);
+        static Instruction32 addImmediate32(Register Rdn, uint16_t imm12, bool setFlags = false);
 
         /**
          * Add Register. Adds register value and optionally shifted register value together and writes to destination register
@@ -162,6 +163,7 @@ class JIT::Instructions::Arithmetic {
          * Throughput: 1
          */
         static Instruction32 subImmediate32(Register Rd, Register Rn, uint16_t imm12);
+        static Instruction32 subImmediate32(Register Rdn, uint16_t imm12);
 
         /**
          * SUB (register): Subtracts register value (Rm) from other register value (Rn)
@@ -201,6 +203,34 @@ class JIT::Instructions::Arithmetic {
          */
         static Instruction32 subRegister32(Register Rd, Register Rn, Register Rm, Shift shift = LSL, uint8_t amount = 0, bool setFlags = false);
         static Instruction32 subRegister32(Register Rd, Register Rm, Shift shift = LSL, uint8_t amount = 0, bool setFlags = false);
+
+        /**
+         * @brief Multiplies two register values.
+         * 
+         * @param Rdm 
+         * @param Rn 
+         * @return Instruction16 
+         * @see C2.4.127 T1, p. 765
+         * -- Performance -- (p. 27)
+         * Latency: 2
+         * Throughput: 1
+         * Dual-Issue: 01
+         */
+        static Instruction16 mul16(Register Rdm, Register Rn);
+        /**
+         * @brief Multiplies two register values
+         * 
+         * @param Rd 
+         * @param Rn 
+         * @param Rm 
+         * @return Instruction32 
+         * @see C2.4.127 T2, p. 765
+         * -- Performance -- (p. 25)
+         * Latency: 2
+         * Throughput: 1
+         */
+        static Instruction32 mul32(Register Rd, Register Rn, Register Rm);
+
 };
 
 #endif // ARITHMETIC_HPP

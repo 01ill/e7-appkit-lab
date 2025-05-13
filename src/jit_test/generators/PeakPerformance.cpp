@@ -9,20 +9,20 @@ void (*JIT::Generators::PeakPerformance::generate(uint32_t operational_intensity
     backend.resetKernel();
 
     // push {lr}
-    backend.addInstruction(Instructions::DataProcessing::push(Instructions::LR));
+    backend.addInstruction(Instructions::DataProcessing::push32(Instructions::LR));
     // push r4
-    backend.addInstruction(Instructions::DataProcessing::push(Instructions::R4));
+    backend.addInstruction(Instructions::DataProcessing::push32(Instructions::R4));
     // vmov.f32 r4, s0
     backend.addInstruction(Instructions::Vector::vmovGPxScalar(true, Instructions::S0, Instructions::R4));
 
     // dlstp
-    Instructions::Instruction16 * dlstpStart = backend.addBranchInstruction(Instructions::Base::dlstp(Instructions::Register::R3, Instructions::Size32));
+    Instructions::Instruction16 * dlstpStart = backend.addBranchTargetInstruction(Instructions::Base::dlstp(Instructions::Register::R3, Instructions::Size32));
 
     // backend.addInstruction(Instructions::Base::nop());
     // vldrw.f32 q0, [r0], #16
-    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R0, 4, false, true, 0));
+    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R0, 4, false, true));
     // vldrw.f32 q0, [r1], #16
-    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q1, Instructions::R1, 4, false, true, 0)); // TODO
+    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q1, Instructions::R1, 4, false, true)); // TODO
 
     // generate according to operational intensity
     for (uint32_t i = 0; i < operational_intensity; i++) {
@@ -43,9 +43,9 @@ void (*JIT::Generators::PeakPerformance::generate(uint32_t operational_intensity
     backend.addInstruction(Instructions::Base::letp(backend.getBranchOffset(dlstpStart) + 2));
 
     // pop r4
-    backend.addInstruction(Instructions::DataProcessing::pop(Instructions::R4));
+    backend.addInstruction(Instructions::DataProcessing::pop32(Instructions::R4));
     // pop {pc}
-    backend.addInstruction(Instructions::DataProcessing::pop(Instructions::PC));
+    backend.addInstruction(Instructions::DataProcessing::pop32(Instructions::PC));
 
     __asm("dsb");
     __asm("isb");
@@ -57,20 +57,20 @@ void (*JIT::Generators::PeakPerformance::generateNoMem(uint32_t operational_inte
     backend.resetKernel();
 
     // push {lr}
-    backend.addInstruction(Instructions::DataProcessing::push(Instructions::LR));
+    backend.addInstruction(Instructions::DataProcessing::push32(Instructions::LR));
     // push r4
-    backend.addInstruction(Instructions::DataProcessing::push(Instructions::R4));
+    backend.addInstruction(Instructions::DataProcessing::push32(Instructions::R4));
     // vmov.f32 r4, s0
     backend.addInstruction(Instructions::Vector::vmovGPxScalar(true, Instructions::S0, Instructions::R4));
 
     // dlstp
-    Instructions::Instruction16 * dlstpStart = backend.addBranchInstruction(Instructions::Base::dlstp(Instructions::Register::R3, Instructions::Size32));
+    Instructions::Instruction16 * dlstpStart = backend.addBranchTargetInstruction(Instructions::Base::dlstp(Instructions::Register::R3, Instructions::Size32));
 
     // backend.addInstruction(Instructions::Base::nop());
     // vldrw.f32 q0, [r0]
-    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R0, 0, false, false, 0));
+    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R0, 0, false, false));
     // vldrw.f32 q0, [r1]
-    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R1, 0, false, false, 0));
+    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R1, 0, false, false));
 
     // generate according to operational intensity
     for (uint32_t i = 0; i < operational_intensity; i++) {
@@ -91,9 +91,9 @@ void (*JIT::Generators::PeakPerformance::generateNoMem(uint32_t operational_inte
     backend.addInstruction(Instructions::Base::letp(backend.getBranchOffset(dlstpStart) + 2));
 
     // pop r4
-    backend.addInstruction(Instructions::DataProcessing::pop(Instructions::R4));
+    backend.addInstruction(Instructions::DataProcessing::pop32(Instructions::R4));
     // pop {pc}
-    backend.addInstruction(Instructions::DataProcessing::pop(Instructions::PC));
+    backend.addInstruction(Instructions::DataProcessing::pop32(Instructions::PC));
 
     __asm("dsb");
     __asm("isb");
@@ -105,20 +105,20 @@ void (*JIT::Generators::PeakPerformance::generateSteps(float operational_intensi
     backend.resetKernel();
 
     // push {lr}
-    backend.addInstruction(Instructions::DataProcessing::push(Instructions::LR));
+    backend.addInstruction(Instructions::DataProcessing::push32(Instructions::LR));
     // push r4
-    backend.addInstruction(Instructions::DataProcessing::push(Instructions::R4));
+    backend.addInstruction(Instructions::DataProcessing::push32(Instructions::R4));
     // vmov.f32 r4, s0
     backend.addInstruction(Instructions::Vector::vmovGPxScalar(true, Instructions::S0, Instructions::R4));
 
     // dlstp
-    Instructions::Instruction16 * dlstpStart = backend.addBranchInstruction(Instructions::Base::dlstp(Instructions::Register::R3, Instructions::Size32));
+    Instructions::Instruction16 * dlstpStart = backend.addBranchTargetInstruction(Instructions::Base::dlstp(Instructions::Register::R3, Instructions::Size32));
 
     // backend.addInstruction(Instructions::Base::nop());
     // vldrw.f32 q0, [r0], #16
-    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R0, 4, false, true, 0));
+    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R0, 4, false, true));
     // vldrw.f32 q0, [r1], #16
-    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R1, 4, false, true, 0));
+    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R1, 4, false, true));
     uint32_t count = 0;
     // generate according to operational intensity
     for (float i = 0; i < operational_intensity; i += 0.25) {
@@ -133,9 +133,9 @@ void (*JIT::Generators::PeakPerformance::generateSteps(float operational_intensi
     backend.addInstruction(Instructions::Base::letp(backend.getBranchOffset(dlstpStart) + 2));
 
     // pop r4
-    backend.addInstruction(Instructions::DataProcessing::pop(Instructions::R4));
+    backend.addInstruction(Instructions::DataProcessing::pop32(Instructions::R4));
     // pop {pc}
-    backend.addInstruction(Instructions::DataProcessing::pop(Instructions::PC));
+    backend.addInstruction(Instructions::DataProcessing::pop32(Instructions::PC));
 
     __asm("dsb");
     __asm("isb");
@@ -147,20 +147,20 @@ void (*JIT::Generators::PeakPerformance::generateStepsNoMem(float operational_in
     backend.resetKernel();
 
     // push {lr}
-    backend.addInstruction(Instructions::DataProcessing::push(Instructions::LR));
+    backend.addInstruction(Instructions::DataProcessing::push32(Instructions::LR));
     // push r4
-    backend.addInstruction(Instructions::DataProcessing::push(Instructions::R4));
+    backend.addInstruction(Instructions::DataProcessing::push32(Instructions::R4));
     // vmov.f32 r4, s0
     backend.addInstruction(Instructions::Vector::vmovGPxScalar(true, Instructions::S0, Instructions::R4));
 
     // dlstp
-    Instructions::Instruction16 * dlstpStart = backend.addBranchInstruction(Instructions::Base::dlstp(Instructions::Register::R3, Instructions::Size32));
+    Instructions::Instruction16 * dlstpStart = backend.addBranchTargetInstruction(Instructions::Base::dlstp(Instructions::Register::R3, Instructions::Size32));
 
     // backend.addInstruction(Instructions::Base::nop());
     // vldrw.f32 q0, [r0]
-    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R0, 0, false, false, 0));
+    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R0, 0, false, false));
     // vldrw.f32 q0, [r1]
-    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R1, 0, false, false, 0));
+    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R1, 0, false, false));
 
     uint32_t count = 0;
     // generate according to operational intensity
@@ -176,9 +176,9 @@ void (*JIT::Generators::PeakPerformance::generateStepsNoMem(float operational_in
     backend.addInstruction(Instructions::Base::letp(backend.getBranchOffset(dlstpStart) + 2));
 
     // pop r4
-    backend.addInstruction(Instructions::DataProcessing::pop(Instructions::R4));
+    backend.addInstruction(Instructions::DataProcessing::pop32(Instructions::R4));
     // pop {pc}
-    backend.addInstruction(Instructions::DataProcessing::pop(Instructions::PC));
+    backend.addInstruction(Instructions::DataProcessing::pop32(Instructions::PC));
 
     __asm("dsb");
     __asm("isb");
@@ -190,25 +190,25 @@ void (*JIT::Generators::PeakPerformance::generate(uint32_t flopsPerByte, uint32_
     backend.resetKernel();
 
     // push {lr}
-    backend.addInstruction(Instructions::DataProcessing::push(Instructions::LR));
+    backend.addInstruction(Instructions::DataProcessing::push32(Instructions::LR));
     // push r4
-    backend.addInstruction(Instructions::DataProcessing::push(Instructions::R4));
+    backend.addInstruction(Instructions::DataProcessing::push32(Instructions::R4));
     // vmov.f32 r4, s0
     backend.addInstruction(Instructions::Vector::vmovGPxScalar(true, Instructions::S0, Instructions::R4));
 
     // dlstp
-    Instructions::Instruction16 * dlstpStart = backend.addBranchInstruction(Instructions::Base::dlstp(Instructions::Register::R3, Instructions::Size32));
+    Instructions::Instruction16 * dlstpStart = backend.addBranchTargetInstruction(Instructions::Base::dlstp(Instructions::Register::R3, Instructions::Size32));
 
     // vldrw.f32 q0, [r0], #16
-    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R0, 4, false, true, 0));
+    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R0, 4, false, true));
     // vldrw.f32 q0, [r1], #16
-    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q1, Instructions::R1, 4, false, true, 0)); // TODO
+    backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q1, Instructions::R1, 4, false, true)); // TODO
 
     assert(vectorCount % 2 == 0);
     assert(vectorCount <= 8);
     for (uint32_t i = 0; i < vectorCount; i += 2) {
-        backend.addInstruction(Instructions::Vector::vldrw(static_cast<Instructions::VectorRegister>(i), Instructions::R0, 4, false, true, false));
-        backend.addInstruction(Instructions::Vector::vldrw(static_cast<Instructions::VectorRegister>(i+1), Instructions::R1, 4, false, true, false));
+        backend.addInstruction(Instructions::Vector::vldrw(static_cast<Instructions::VectorRegister>(i), Instructions::R0, 4, false, true));
+        backend.addInstruction(Instructions::Vector::vldrw(static_cast<Instructions::VectorRegister>(i+1), Instructions::R1, 4, false, true));
     }
 
     // 1 vector = 128 Bit = 16 Byte i.e. for each vector we need flopsPerByte * 16 flops and we progress in 2 vector steps
@@ -233,9 +233,9 @@ void (*JIT::Generators::PeakPerformance::generate(uint32_t flopsPerByte, uint32_
     backend.addInstruction(Instructions::Base::letp(backend.getBranchOffset(dlstpStart) + 2));
 
     // pop r4
-    backend.addInstruction(Instructions::DataProcessing::pop(Instructions::R4));
+    backend.addInstruction(Instructions::DataProcessing::pop32(Instructions::R4));
     // pop {pc}
-    backend.addInstruction(Instructions::DataProcessing::pop(Instructions::PC));
+    backend.addInstruction(Instructions::DataProcessing::pop32(Instructions::PC));
 
     __asm("dsb");
     __asm("isb");

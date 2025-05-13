@@ -5,6 +5,9 @@ set(CMAKE_C_COMPILER "gcc")
 
 project(JitTest)
 
+set(CMAKE_CXX_STANDARD 23)
+
+
 enable_testing()
 # find_package(Catch2 REQUIRED)
 
@@ -13,6 +16,7 @@ add_executable(jit_test
     test_DataProcessingInstructions.cpp
     test_BaseInstructions.cpp
     test_ArithmeticInstructions.cpp
+    test_VectorInstructions.cpp
     catch2/catch_amalgamated.cpp
     ../instructions/DataProcessing.cpp
     ../instructions/Arithmetic.cpp

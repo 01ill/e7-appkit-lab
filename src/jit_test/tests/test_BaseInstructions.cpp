@@ -67,5 +67,4 @@ TEST_CASE("B encodes correctly", "[B]") {
     SECTION("Bcond16 - 3") {
         REQUIRE(Base::bCond16(GE, 2) == 0xdaff);
     }
-
 }

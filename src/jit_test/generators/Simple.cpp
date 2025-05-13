@@ -9,7 +9,7 @@ uint32_t ( *JIT::Generators::Simple::generate())() {
 
     // backend.addInstruction(Instructions::DataProcessing::ldr(Instructions::R0, Instructions::R1));
 
-    backend.addInstruction(Instructions::DataProcessing::mov(Instructions::Register::R0, 3));
+    backend.addInstruction(Instructions::DataProcessing::movImmediate16(Instructions::Register::R0, 3));
 
     backend.addInstruction(Instructions::Base::bx(Instructions::Register::LR));
 

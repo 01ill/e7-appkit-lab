@@ -2,6 +2,9 @@
 #define BASE_HPP
 
 #include <cstdint>
+#ifdef PRINT_ENCODING_ERRORS
+#include "SEGGER_RTT.h"
+#endif
 
 namespace JIT {
     namespace Instructions {
@@ -141,6 +144,16 @@ namespace JIT {
 
 class JIT::Instructions::Base {
     public:
+        template <typename... Register>
+        static bool assertLowRegister(Register... regs) {
+            // https://timsong-cpp.github.io/cppwp/n4868/temp.variadic#10
+            return (... && (regs <= 7));
+        }
+        static void printValidationError(const char * message) {
+            #ifdef PRINT_ENCODING_ERRORS
+            SEGGER_RTT_printf(0, message);
+            #endif
+        }
         /**
          * @brief No Operation
          * 
@@ -164,6 +177,7 @@ class JIT::Instructions::Base {
             C2.4.492, T4, p. 1438
         */
         static Instruction32 dlstp(Register Rn, Size size);
+        static Instruction32 dls(Register Rn);
         /**
          * @brief 
          * 
@@ -171,6 +185,7 @@ class JIT::Instructions::Base {
          * @return Instruction32 
          */
         static Instruction32 letp(int16_t imm11);
+        static Instruction32 le(int16_t imm1);
 
 
         /**
@@ -230,9 +245,17 @@ class JIT::Instructions::Base {
          * @return Instruction16 
          */
         static Instruction16 bCond16(Condition cond, int16_t imm8);
-        static Instruction16 bCond16(int16_t imm11);
+        static Instruction16 b16(int16_t imm11);
         static Instruction32 bCond32(Condition cond, int32_t label);
-        static Instruction16 bCond32(uint32_t label);
+        static Instruction32 b32(uint32_t label);
+
+        /**
+         * @brief Generates UDF (Undefined Instruction)
+         * helpful to exit the execution and print the registers
+         * 
+         * @return Instruction16 
+         */
+        static Instruction16 udf(uint8_t imm8);
 };
 
 #endif // BASE_HPP

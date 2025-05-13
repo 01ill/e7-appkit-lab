@@ -2,38 +2,49 @@
 #include "instructions/Base.hpp"
 #include <cstdint>
 
-JIT::Instructions::Instruction32 JIT::Instructions::Vector::vmovGPxScalar(bool toGP, FloatRegister Vn, Register Rt) {
+using namespace JIT::Instructions;
+
+// n = Vn:N
+Instruction32 Vector::vmovGPxScalar(bool toGP, FloatRegister Vn, Register Rt) {
     Instruction32 instr = 0xEE000A10;
 
     instr |= static_cast<uint8_t>(toGP) << 20U;  // set op
-    instr |= Vn << 16U; // Set Scalar Register
+    instr |= (Vn >> 1) << 16U; // Set Scalar Register
+    instr |= (0x1 & Vn) << 7; // set N
     instr |= Rt << 12U; // Set GP Register
     
     return instr;
 }
 
-JIT::Instructions::Instruction32 JIT::Instructions::Vector::vldrw(VectorRegister Qd, Register Rn, uint8_t imm, bool preIndexed, bool writeBack, bool subtractImm) {
+Instruction32 Vector::vldrw(VectorRegister Qd, Register Rn, int16_t imm, bool preIndexed, bool writeBack) {
     Instruction32 instr = 0xEC10'1F00;
 
-    // the combination of post indexed and not writing back is not allowed
-    // it will be handled as a default case of just loading without any offset i.e. pre-indexed with zero-immediate
+    if (imm > 508 || imm < -508 || (imm & 0x03) != 0) {
+        Base::printValidationError("vldrw: immediate must be +-[0, 508] and multiple of 4 - inserting nop");
+        return Base::nop32();
+    }
     if (!preIndexed && !writeBack) {
-        imm = 0;
-        preIndexed = 1;
+        Base::printValidationError("vldrw: post index must write back - setting write back");
+        writeBack = true;
     }
 
     instr |= preIndexed << 24U; // Pre Indexed Variant (False -> Post-Indexed)
     instr |= writeBack << 21U;
-    instr |= !subtractImm << 23U;
-    instr |= 0x7f & imm; // mask off highest bit
+    if (imm < 0) {
+        imm = -imm;
+    } else { // positive values: set A=1 == add immediate
+        instr |= 1 << 23; // set subtract imm
+    }
+
+    instr |= (0x3ff & imm) >> 2; // mask off immediate and right shift because VLDRW does << 2
     instr |= Qd << 13U;
     instr |= Rn << 16U;
 
     return instr;
 }
 
-JIT::Instructions::Instruction32 JIT::Instructions::Vector::vstrw(VectorRegister Qd, Register Rn, uint8_t imm, bool preIndexed, bool writeBack, bool subtractImm) {
-    Instruction32 instr = vldrw(Qd, Rn, imm, preIndexed, writeBack, subtractImm);
+Instruction32 Vector::vstrw(VectorRegister Qd, Register Rn, int16_t imm, bool preIndexed, bool writeBack) {
+    Instruction32 instr = vldrw(Qd, Rn, imm, preIndexed, writeBack);
     instr &= ~(1 << 20U); // 20th Bit is 0 instead of 1 (compared to vldrw) -> clear bit
     return instr;
 }
@@ -50,7 +61,7 @@ JIT::Instructions::Instruction32 JIT::Instructions::Vector::vfmaVectorByScalarPl
     return instr;
 }
 
-JIT::Instructions::Instruction32 JIT::Instructions::Vector::vfma(VectorRegister Qda, VectorRegister Qn, VectorRegister Qm, bool bf16) {
+Instruction32 Vector::vfma(VectorRegister Qda, VectorRegister Qn, VectorRegister Qm, bool bf16) {
     Instruction32 instr = 0xEF00'0C50;
 
     instr |= bf16 << 20U; // use bf16 else use float32
@@ -59,4 +70,75 @@ JIT::Instructions::Instruction32 JIT::Instructions::Vector::vfma(VectorRegister 
     instr |= Qn << 17U;
 
     return instr;
+}
+
+/*
+* you have to use an cmode and op combination to generate the immediate
+* an imm64 is generated, which is put into two lanes (when using single precision).
+* this means, that the imm64 is written twice
+* Combinations:
+* - Int 32
+*       cmode = 0000, op = 0
+*           write imm8 in each lane
+*       cmode = 0010, op = 0
+*           write imm8<<8 in each lane
+*       cmode = 0100, op = 0
+*           write imm8<<16 in each lane
+*       cmode = 0110, op = 0
+*           write imm8<<24 in each lane
+*       cmode = 1100, op = 0
+*           write imm8:0xff in each lane
+*       cmode = 1101, op = 0
+*           write imm8:0xffff in each lane
+* - Int 16
+*       cmode = 1000, op = 0
+*           write imm8 in each lane
+*       cmode = 1010, op = 0
+*           write imm8<<8 in each lane
+* - Int 8
+*       cmode = 1110, op = 0
+*           write imm8 in each lane
+* - Int 64
+*       cmode = 1110, op = 1
+*           replicate each bit of imm8 eight times and write the result to the two lanes
+*           e.g. 01234567 -> 0000000011111111...
+* - Float 32
+*       cmode = 1111, op = 0
+* imm8 = i:imm3:imm4
+* for now only supports 8bit immediate
+*/
+Instruction32 Vector::vmovImmediate(VectorRegister Qd, uint8_t imm8, DataType dt) {
+    Instruction32 instr = 0xef80'0050;
+    instr |= Qd << 13;
+    instr |= 0xf & imm8; // imm4
+    instr |= (0x7 & (imm8 >> 4)) << 16; // imm3
+    instr |= (0x1 & (imm8 >> 7)) << 28; // i
+
+    if (dt == DataType::I8) {
+        // only possible to write imm8 in each lane
+        instr |= 0xe << 8; // cmode
+        instr |= 0x0 << 5; // op
+    } else if (dt == DataType::I16) {
+        instr |= 0x8 << 8; // cmode
+        instr |= 0x0 << 5; // op
+    } else if (dt == DataType::I32) {
+        instr |= 0x0 << 8; // cmode
+        instr |= 0x0 << 5; // op
+    } else {
+        Base::printValidationError("vmovImmediate: Datatype not supported - returning nop");
+        return Base::nop32();
+    }
+    return instr;
+}
+
+Instruction32 Vector::vorr(VectorRegister Qd, VectorRegister Qn, VectorRegister Qm) {
+    Instruction32 instr = 0xef20'0150;
+    instr |= Qm << 1;
+    instr |= Qd << 13;
+    instr |= Qn << 17;
+    return instr;
+}
+
+Instruction32 Vector::vmovRegister(VectorRegister Qd, VectorRegister Qm) {
+    return vorr(Qd, Qm, Qm); // vmov register is alias of vorr
 }
