@@ -8,6 +8,7 @@ project:
         - file: generators/Simple.cpp
         - file: generators/Triad.cpp
         - file: generators/PeakPerformance.cpp
+        - file: generators/Gemm.cpp
         - file: instructions/Arithmetic.cpp
         - file: instructions/Base.cpp
         - file: instructions/DataProcessing.cpp
