@@ -31,17 +31,17 @@
 static char PRINTF_OUT_STRING[256] __attribute__((used, section(".bss.array_region_sram0")));
 
 
-static constexpr uint32_t arrayMaxSize = 72;
-static constexpr uint32_t M = 72;
-static constexpr uint32_t K = 72;
-static constexpr uint32_t N = 72;
+static constexpr uint32_t arrayMaxSize = 24;
+static constexpr uint32_t M = 24;
+static constexpr uint32_t K = 24;
+static constexpr uint32_t N = 24;
 static float32_t bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
 static float32_t bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float32_t bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float32_t bigCRef[M*N] __attribute__((used, section(".bss.array_region_sram0")));
 static float32_t packedA[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
 static float32_t packedB[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
-
+static float32_t bigBigA[64*64];
 extern "C" {
     float32_t gemm_4x6(const float32_t * a, const float32_t * b, float32_t * c, const uint32_t len_k);
     float32_t gemm_4x4(const float32_t * a, const float32_t * b, float32_t * c, const uint32_t len_k);
@@ -51,6 +51,8 @@ extern "C" {
     float32_t gemm_asm_8x3_microkernel(const float32_t * __restrict__ a, const float32_t * __restrict__ b, float32_t * __restrict__ c, const uint32_t len);
     float32_t gemm_asm_24x24(const float32_t * __restrict__ a, const float32_t * __restrict__ b, float32_t * __restrict__ c, const uint32_t len);
     float32_t gemm_asm_4x7(const float32_t * a, const float32_t * b, float32_t * c, const uint32_t len);
+    float32_t gemm_asm_konly(const float32_t * __restrict__ a, const float32_t * __restrict__ b, float32_t * __restrict__ c, const uint32_t len);
+    float32_t gemm_asm_kloop_microkernel(const float32_t * __restrict__ a, const float32_t * __restrict__ b, float32_t * __restrict__ c, const uint32_t len);
 }
 
 /*
@@ -617,6 +619,34 @@ __NO_RETURN int main (void) {
     } else {
         SEGGER_RTT_printf(0, "GEMM-ASM 24x24: Test nicht erfolgreich bei %d\n", compareResult);
     }
+
+    for (uint32_t j = 0; j < arrayMaxSize*arrayMaxSize; j++) {
+        bigA[j] = j;
+        bigB[j] = j;
+        bigC[j] = 0;
+        bigCRef[j] = 0;
+    }
+    gemm_asm_8x3(bigA, bigB, bigC, arrayMaxSize);
+    gemm_reference_column_major(bigA, bigB, bigCRef, arrayMaxSize);
+    compareResult = compare(bigC, bigCRef, arrayMaxSize*arrayMaxSize);
+    if (compareResult == -1) {
+        SEGGER_RTT_printf(0, "GEMM-ASM 8x3: Test erfolgreich!\n");
+    } else {
+        SEGGER_RTT_printf(0, "GEMM-ASM 8x3: Test nicht erfolgreich bei %d\n", compareResult);
+    }
+
+    initMatrices(bigA, bigB, bigC);
+    start = RTC_Clock::now();
+    for (uint32_t j = 0; j < iterations; j++) {
+        gemm_asm_konly(bigBigA, bigB, bigC, arrayMaxSize*arrayMaxSize/2);
+    }
+    end = RTC_Clock::now();
+
+    time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    flops = iterations * 2 * arrayMaxSize*arrayMaxSize * 6;
+    gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
+    sprintf(PRINTF_OUT_STRING, "GEMM CM 8x3 KOnly %dx%dx%d (%d): %f, %f, %f\r\n", M, K, N, time, bigC[0], result, gflops);
+    SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
     stopTests();
 

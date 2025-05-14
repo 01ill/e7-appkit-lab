@@ -11,6 +11,7 @@ project:
         - file: gemm_asm_4x7.s
         - file: gemm_asm_8x3.s
         - file: gemm_asm_24x24.s
+        - file: gemm_k_loop.s
 
   output:
     base-name: $Project$

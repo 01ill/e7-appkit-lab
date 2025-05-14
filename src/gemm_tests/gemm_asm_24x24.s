@@ -69,6 +69,7 @@ gemm_loop_j:
     ldr r4, [r1, r3] // [LOOP K PRE] load b[2len]
     //ldr r4, [r1, #192] // [LOOP K PRE] load b[2len]
     ldr r5, [r1], #4        // [LOOP K PRE] load b[0] and write back for next k
+    /*
     vmov.i32 q5, #0         // [INIT ACCUMULATOR] c[2,1]
     vldrw.f32 q6, [r0]      // [LOOP K PRE] load next A[0]
     vorr.f32 q0, q5, q5     // [INIT ACCUMULATOR] c[0,0]
@@ -84,6 +85,24 @@ gemm_loop_j:
     vfma.f32 q4, q6, r4     // [LOOP K PRE] calculate c[2,0]
     vldrw.f32 q6, [r0, #24*4]  // [LOOP K BEFORE] load next A[0]
     vfma.f32 q5, q7, r4     // [LOOP K PRE] calculate c[2,1]
+*/
+    // Instead of 0 initializing load existing values from c
+    vldrw.f32 q5, [r2, #C21_OFFSET]         // [INIT ACCUMULATOR] c[2,1]
+    vldrw.f32 q6, [r0]      // [LOOP K PRE] load next A[0]
+    vldrw.f32 q0, [r2, #C00_OFFSET]     // [INIT ACCUMULATOR] c[0,0]
+    vfma.f32 q0, q6, r5     // [LOOP K PRE] calculate c[0,0]
+    vldrw.f32 q1, [r2, #C01_OFFSET]         // [INIT ACCUMULATOR] c[0,1]
+    vldrw.f32 q7, [r0, #16] // [LOOP K PRE] load next A[1]
+    vfma.f32 q1, q7, r5     // [LOOP K PRE] calculate c[0,1]
+    vldrw.f32 q2, [r2, #C10_OFFSET]         // [INIT ACCUMULATOR] c[1,0]
+    vfma.f32 q2, q6, r7     // [LOOP K PRE] calculate c[1,0]
+    vldrw.f32 q3, [r2, #C11_OFFSET]         // [INIT ACCUMULATOR] c[1,1]
+    vfma.f32 q3, q7, r7     // [LOOP K PRE] calculate c[1,1]
+    vldrw.f32 q0, [r2, #C20_OFFSET]         // [INIT ACCUMULATOR] c[2,0]
+    vfma.f32 q4, q6, r4     // [LOOP K PRE] calculate c[2,0]
+    vldrw.f32 q6, [r0, #24*4]  // [LOOP K BEFORE] load next A[0]
+    vfma.f32 q5, q7, r4     // [LOOP K PRE] calculate c[2,1]
+
 
     adds r0, #96  // [LOOP K PRE] add length to a pointer (prepare for next k)
     ldr r7, [r1, #96]// [LOOP K BEFORE] load b[len]
