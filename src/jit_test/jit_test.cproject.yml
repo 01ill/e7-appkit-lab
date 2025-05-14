@@ -24,6 +24,13 @@ project:
   add-path:
     - .
 
+  components:
+    - component: ARM::CMSIS:DSP
+
+  define:
+    - USE_CMSIS_DSP
+    - PRINT_ENCODING_ERRORS
+
   layers:
     - layer: ../../libs/alif/board.clayer.yml
     - layer: ../../libs/device/alif-device.clayer.yml
