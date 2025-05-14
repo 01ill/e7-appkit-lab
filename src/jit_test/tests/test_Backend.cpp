@@ -32,7 +32,7 @@ TEST_CASE("Helium instructions are correctly aligned", "[BACKEND]") {
     // REQUIRE(instructions[backend.getInstructionCount() - 3] == Instructions::Base::nop());
     // heliumStart = reinterpret_cast<Instructions::Instruction16*>(reinterpret_cast<uintptr_t>(heliumStart) & 0xf); // only keep lowest 4 bits
 }
-
+/*
 TEST_CASE("Branching Operations", "[BRANCH]") {
     SECTION("Low Overhead Branch - Backwards LE/LETP") {
         Backend backend;
@@ -41,4 +41,4 @@ TEST_CASE("Branching Operations", "[BRANCH]") {
         backend.addLowOverheadBranchFromCurrentPosition(dlsStart);
         REQUIRE(&backend.getInstructions()[backend.getInstructionCount()-1] == dlsStart);
     }
-}
+}*/

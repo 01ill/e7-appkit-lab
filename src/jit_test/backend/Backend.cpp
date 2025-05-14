@@ -47,11 +47,11 @@ void JIT::Backend::addBackwardsBranchFromCurrentPosition(Instructions::Instructi
     if (branchCondition == Instructions::AL && branchOffset < 2046 && branchOffset > -2048) { // use unconditional 16bit branch
         addInstruction(Base::b16(branchOffset-4));
     } else if (branchCondition == Instructions::AL && (branchOffset > 2046 || branchOffset < -2048)) { // use unconditional 32bit branch
-
+        addInstruction(Base::b32(branchOffset-4));
     } else if (branchCondition != AL && branchOffset < 254 && branchOffset > -256) { // use conditional 16bit branch
         addInstruction(Base::bCond16(branchCondition, branchOffset-4));
     } else { // use conditional 32bit branch
-
+        addInstruction(Base::bCond32(branchCondition, branchOffset-4));
     }
 }
 

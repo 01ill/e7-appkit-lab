@@ -89,3 +89,23 @@ TEST_CASE("VSTRW encodes correctly", "[VSTRW]") {
         REQUIRE(Vector::vstrw(Q3, R11, 512) == Base::nop32());
     }
 }
+
+TEST_CASE("VCTP encodes correctly", "[VCTP]") {
+    SECTION("Test 1") {
+        REQUIRE(Vector::vctp(Size32, R3) == 0xf023'e801);
+    }
+}
+
+TEST_CASE("VPST encodes correctly", "[VPST]") {
+    SECTION("Test 1") {
+        REQUIRE(Vector::vpst(1) == 0xfe71'0f4d);
+        REQUIRE(Vector::vpst(2) == 0xfe31'8f4d);
+        REQUIRE(Vector::vpst(3) == 0xfe31'4f4d);
+        REQUIRE(Vector::vpst(4) == 0xfe31'2f4d);
+    }
+
+    SECTION("validate errors") {
+        REQUIRE(Vector::vpst(5) == Base::nop32());
+        REQUIRE(Vector::vpst(0) == Base::nop32());
+    }
+}

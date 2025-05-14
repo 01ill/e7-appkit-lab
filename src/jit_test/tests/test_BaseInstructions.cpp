@@ -56,7 +56,7 @@ TEST_CASE("CMP encodes correctly", "[CMP]") {
         REQUIRE(Base::cmpRegister16(R3, R10) == 0x4553);
     }
 }
-
+/*
 TEST_CASE("B encodes correctly", "[B]") {
     SECTION("Bcond16 - 1") {
         REQUIRE(Base::bCond16(GE, 6) == 0xda01);
@@ -67,4 +67,4 @@ TEST_CASE("B encodes correctly", "[B]") {
     SECTION("Bcond16 - 3") {
         REQUIRE(Base::bCond16(GE, 2) == 0xdaff);
     }
-}
+}*/

@@ -28,6 +28,9 @@ class JIT::Instructions::Vector {
 
         static Instruction32 vfmaVectorByScalarPlusVector(VectorRegister Qda, VectorRegister Qn, Register Rm, bool bf16 = false);
         static Instruction32 vfma(VectorRegister Qda, VectorRegister Qn, VectorRegister Qm, bool bf16 = false);
+
+        static Instruction32 vctp(Size size, Register Rn);
+        static Instruction32 vpst(uint8_t predicatedInstructions);
 };
 
 #endif // JIT_INSTRUCTIONS_VECTOR_HPP

@@ -123,11 +123,20 @@ Instruction32 Base::bCond32(Condition cond, int32_t label) {
     if (cond == AL) {
         return b32(label);
     }
-    return Base::nop32();
+    Instruction32 instr = 0xf000'8000;
+    instr |= cond << 22;
+    label >>= 1; // left shift of 1 is applied by the instruction
+    instr |= (0x7ff & label); // set imm11
+    instr |= (0x3f & (label >> 11)) << 16; // imm6
+    instr |= (0x1 & (label >> 17)) << 13; // J1
+    instr |= (0x1 & (label >> 18)) << 11; // J2
+    instr |= (0x1 & (label >> 19)) << 26; // J2
+    return instr;
 }
 
 // imm32 = S:I2:I1:imm10:imm11:0
 Instruction32 Base::b32(uint32_t label) {
+
     return Base::nop32();
 }
 

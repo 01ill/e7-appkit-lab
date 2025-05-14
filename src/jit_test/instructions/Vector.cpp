@@ -142,3 +142,34 @@ Instruction32 Vector::vorr(VectorRegister Qd, VectorRegister Qn, VectorRegister 
 Instruction32 Vector::vmovRegister(VectorRegister Qd, VectorRegister Qm) {
     return vorr(Qd, Qm, Qm); // vmov register is alias of vorr
 }
+
+Instruction32 Vector::vctp(Size size, Register Rn) {
+    Instruction32 instr = 0xf000'e801;
+    instr |= Rn << 16;
+    instr |= size << 20;
+    return instr;
+}
+
+// mask = Mkh:Mkl
+Instruction32 Vector::vpst(uint8_t predicatedInstructions) {
+    if (predicatedInstructions < 1 || predicatedInstructions > 4) {
+        Base::printValidationError("vpst: only 1-4 instructions can be predicated - returning nop");
+        return Base::nop32();
+    }
+    Instruction32 instr = 0xfe31'0f4d;
+    switch (predicatedInstructions) {
+        case 1:
+            instr |= 1 << 22;
+            break;
+        case 2:
+            instr |= 0b100 << 13;
+            break;
+        case 3:
+            instr |= 0b010 << 13;
+            break;
+        case 4:
+            instr |= 0b001 << 13;
+            break;
+    }
+    return instr;
+}
