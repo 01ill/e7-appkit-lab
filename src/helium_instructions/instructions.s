@@ -16,3 +16,17 @@ generateFpStall:
     vfma.f32 q2, q3, q0
 
     pop {pc}
+
+.global testPredication
+.type testPredication, %function
+
+testPredication:
+    push {lr}
+    mov r1, #2
+    vctp.32 r1
+    vpstttt
+    vldrwt.f32 q0, [r0]
+    vldrwt.f32 q1, [r0, #16]
+    vmult.f32 q2, q0, q1
+    vstrwt.f32 q2, [r0]
+    pop {pc}
