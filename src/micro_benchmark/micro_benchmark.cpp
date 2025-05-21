@@ -110,17 +110,17 @@ static constexpr uint32_t flop[FLOP_TEST_COUNT] = {
 extern "C" {
 	void stream_copy(float * __restrict a, float * __restrict c, uint32_t len);
 	void stream_copy_mve(float * __restrict a, float * __restrict c, uint32_t len);
-	void stream_scale(float * __restrict c, float *b, float scalar, uint32_t len);
+	void stream_scale(float * __restrict c, float * __restrict b, float scalar, uint32_t len);
 	void stream_scale_mve(float * __restrict c, float * __restrict b, float scalar, uint32_t len);
-	void stream_add(float * __restrict c, float * __restrict a, float * __restrictb, uint32_t len);
-	void stream_add_mve(float * __restrict c, float * __restrict a, float * __restrictb, uint32_t len);
-	void stream_triad(float * __restrict a, float *b, float * __restrict c, float scalar, uint32_t len);
-	void stream_triad_mve(float * __restrict a, float *b, float * __restrict c, float scalar, uint32_t len);
+	void stream_add(float * __restrict c, float * __restrict a, float * __restrict b, uint32_t len);
+	void stream_add_mve(float * __restrict c, float * __restrict a, float * __restrict b, uint32_t len);
+	void stream_triad(float * __restrict a, float * __restrict b, float * __restrict c, float scalar, uint32_t len);
+	void stream_triad_mve(float * __restrict a, float * __restrict b, float * __restrict c, float scalar, uint32_t len);
 	void flops_scalar_fp32(float * __restrict a, float * __restrict__ b, float * __restrict c, float scalar, uint32_t len);
 	void flops_scalar_fp64(double * __restrict a, double * __restrict__ b, double * __restrict c, double scalar, uint32_t len);
-	void flops_mve_fp16(float16_t * __restrict a, float16_t *b, float16_t * __restrict c, float16_t scalar, uint32_t len);
-	void flops_mve_fp32(float * __restrict a, float *b, float * __restrict c, float scalar, uint32_t len);
-	void flops_mve_fp32_vec4(float * __restrict a, float *b, float * __restrict c, float scalar, uint32_t len);
+	void flops_mve_fp16(float16_t * __restrict a, float16_t * __restrict b, float16_t * __restrict c, float16_t scalar, uint32_t len);
+	void flops_mve_fp32(float * __restrict a, float * __restrict b, float * __restrict c, float scalar, uint32_t len);
+	void flops_mve_fp32_vec4(float * __restrict a, float * __restrict b, float * __restrict c, float scalar, uint32_t len);
 }
 
 __NO_RETURN int main() {
@@ -294,7 +294,7 @@ __NO_RETURN int main() {
 	SEGGER_RTT_printf(0, HLINE);
 	
 
-	setupProfiling();
+	setupProfilingMVEStalls();
 	startCounting();
 	stream_triad_mve(a, b, c, scalar, STREAM_ARRAY_SIZE);
 	stopCounting();

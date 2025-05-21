@@ -32,13 +32,17 @@ stream_copy_end:
  */
 stream_copy_mve:
     push {lr} // save lr
-    wlstp.16 lr, r2, stream_copy_mve_end // start loop
+    wlstp.8 lr, r2, stream_copy_mve_end // start loop
 
 stream_copy_mve_loop:
     vldrw.f32 q0, [r0], #16 // load 4 elements from a
     vldrw.f32 q1, [r0], #16
+    vldrw.f32 q2, [r0], #16 // load 4 elements from a
+    vldrw.f32 q3, [r0], #16
     vstrw.f32 q0, [r1], #16 // copy to c
     vstrw.f32 q1, [r1], #16 // copy to c
+    vstrw.f32 q2, [r1], #16 // copy to c
+    vstrw.f32 q3, [r1], #16 // copy to c
 
     letp lr, stream_copy_mve_loop // check loop
 
@@ -127,9 +131,13 @@ stream_add_end:
  */
 stream_add_mve:
     push {lr} // save lr
-    wlstp.32 lr, r3, stream_add_mve_end // start loop
+    wlstp.16 lr, r3, stream_add_mve_end // start loop
 
 stream_add_mve_loop:
+    vldrw.f32 q0, [r1], #16 // load 4 elements from a
+    vldrw.f32 q1, [r2], #16 // load 4 elements from b
+    vadd.f32 q2, q0, q1 // add a[i] + b[i]  
+    vstrw.f32 q2, [r0], #16 // copy to c
     vldrw.f32 q0, [r1], #16 // load 4 elements from a
     vldrw.f32 q1, [r2], #16 // load 4 elements from b
     vadd.f32 q2, q0, q1 // add a[i] + b[i]  
@@ -181,9 +189,21 @@ stream_triad_mve:
     //lsr r3, r3, #1 // divide length by 2 because we use the double number of registers
     push {r4, lr} // save lr
     vmov.f32 r4, s0 // scalar to r4
-    wlstp.16 lr, r3, stream_triad_mve_end // start loop
+    wlstp.8 lr, r3, stream_triad_mve_end // start loop
 
 stream_triad_mve_loop:
+    vldrw.f32 q1, [r2], #16 // load 4 elements from c
+    vldrw.f32 q0, [r1], #16 // load 4 elements from b
+    vfma.f32 q0, q1, r4 // b[i] + scalar * c[i] = b[i]
+
+    vldrw.f32 q3, [r2], #16
+    vldrw.f32 q2, [r1], #16
+
+    vfma.f32 q2, q3, r4
+
+    vstrw.f32 q2, [r0], #16
+    vstrw.f32 q0, [r0], #16 // copy to a
+
     vldrw.f32 q1, [r2], #16 // load 4 elements from c
     vldrw.f32 q0, [r1], #16 // load 4 elements from b
     vfma.f32 q0, q1, r4 // b[i] + scalar * c[i] = b[i]
