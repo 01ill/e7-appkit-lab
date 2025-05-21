@@ -4,11 +4,13 @@
 void setupProfilingMVEStalls();
 void setupProfilingMVEInstructions();
 void setupProfilingMemory();
+void setupProfilingStalls();
 
 void startCounting();
 
 void stopCounting();
 
 void printCounter();
+void printCounterStalls();
 
 #endif // PROFILING_HPP
