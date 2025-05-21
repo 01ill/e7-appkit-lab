@@ -130,6 +130,18 @@ Instruction32 DataProcessing::movImmediate32(Register Rd, uint16_t imm16) {
     return instr;
 }
 
+// imm16 = imm4:i:imm3:imm8
+Instruction32 DataProcessing::movtImmediate32(Register Rd, uint16_t imm16) {
+    Instruction32 instr = 0xf2c0'0000;;
+    instr |= 0xff & imm16; // set imm8
+    instr |= (0x7 & (imm16>>8)) << 12; // set imm3
+    instr |= (0x1 & (imm16>>11)) << 26; // set i
+    instr |= (0xf & (imm16>>12)) << 16; // set imm4
+    instr |= Rd << 8;
+    return instr;
+}
+
+
 Instruction16 DataProcessing::movRegister16(Register Rd, Register Rm, Shift shift, uint8_t amount) {
     if (shift == LSL && amount == 0) {
         Instruction16 instr = 0x4600;

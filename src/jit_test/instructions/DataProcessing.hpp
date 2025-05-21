@@ -105,6 +105,7 @@ class JIT::Instructions::DataProcessing {
          * Throughput: 1
          */
         static Instruction32 movImmediate32(Register Rd, uint16_t imm16);
+        static Instruction32 movtImmediate32(Register Rd, uint16_t imm16);
 
         /**
          * MOV (Register): Copy the value of an register to the destination register 

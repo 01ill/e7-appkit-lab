@@ -151,7 +151,7 @@ class JIT::Instructions::Base {
         }
         static void printValidationError(const char * message) {
             #ifdef PRINT_ENCODING_ERRORS
-            SEGGER_RTT_printf(0, message);
+            SEGGER_RTT_printf(0, "%s \n", message);
             #endif
         }
         /**
