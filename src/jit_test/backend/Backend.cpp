@@ -43,15 +43,15 @@ void JIT::Backend::addLowOverheadBranchFromCurrentPosition(Instructions::Instruc
 }
 
 void JIT::Backend::addBackwardsBranchFromCurrentPosition(Instructions::Instruction16 * branchTarget, Instructions::Condition branchCondition) {
-    int16_t branchOffset = getBranchOffset(branchTarget);
+    int16_t branchOffset = getBranchOffset(branchTarget) - 4;
     if (branchCondition == Instructions::AL && branchOffset < 2046 && branchOffset > -2048) { // use unconditional 16bit branch
-        addInstruction(Base::b16(branchOffset-4));
+        addInstruction(Base::b16(branchOffset));
     } else if (branchCondition == Instructions::AL && (branchOffset > 2046 || branchOffset < -2048)) { // use unconditional 32bit branch
-        addInstruction(Base::b32(branchOffset-4));
+        addInstruction(Base::b32(branchOffset));
     } else if (branchCondition != AL && branchOffset < 254 && branchOffset > -256) { // use conditional 16bit branch
-        addInstruction(Base::bCond16(branchCondition, branchOffset-4));
+        addInstruction(Base::bCond16(branchCondition, branchOffset));
     } else { // use conditional 32bit branch
-        addInstruction(Base::bCond32(branchCondition, branchOffset-4));
+        addInstruction(Base::bCond32(branchCondition, branchOffset));
     }
 }
 
