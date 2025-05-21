@@ -20,11 +20,11 @@ Instruction32 Vector::vldrw(VectorRegister Qd, Register Rn, int16_t imm, bool pr
     Instruction32 instr = 0xEC10'1F00;
 
     if (imm > 508 || imm < -508 || (imm & 0x03) != 0) {
-        Base::printValidationError("vldrw: immediate must be +-[0, 508] and multiple of 4 - inserting nop");
+        Base::printValidationError("vldrw/vstrw: immediate must be +-[0, 508] and multiple of 4 - inserting nop");
         return Base::nop32();
     }
     if (!preIndexed && !writeBack) {
-        Base::printValidationError("vldrw: post index must write back - setting write back");
+        Base::printValidationError("vldrw/vstrw: post index must write back - setting write back");
         writeBack = true;
     }
 
