@@ -7,6 +7,7 @@
 #include "generators/Triad.hpp"
 #include "generators/Gemm.hpp"
 #include "fault_handler.h"
+#include "profiling.hpp"
 #include <RTE_Components.h>
 #include CMSIS_device_header
 #include "SEGGER_RTT.h"
@@ -37,9 +38,9 @@ static float b[peakCount];// __attribute__((used, section(".bss.array_region_sra
 static float c[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 */
 static constexpr uint32_t arrayMaxSize = 256;
-static uint32_t M = 27;
-static uint32_t K = 24;
-static uint32_t N = 26;
+static uint32_t M = 6;
+static uint32_t K = 23;
+static uint32_t N = 2;
 static float bigA[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
@@ -65,16 +66,16 @@ __NO_RETURN int main() {
 	JIT::Generators::Gemm::Func gemm24 = gemmGen.generate(M, K, N, M, K, M);
 	gemm24 = gemmGen.bufferToFunc(globalBuffer);
 	// gemm24(bigA, bigB, bigC);
-    uint32_t iterations = 8000;
+    uint32_t iterations = 200;
     uint32_t time;
-    float gflops;
-    float result = 0.0f;
+    double gflops;
+    double result = 0.0f;
     arm_matrix_instance_f32 armA;
     arm_matrix_instance_f32 armB;
     arm_matrix_instance_f32 armC;
     arm_status status;
 
-    uint32_t flops = iterations * 2 * M * K * N;
+    uint64_t flops = M * K * N * 2;
     RTC_Clock::time_point start = RTC_Clock::now();
     for (uint32_t j = 0; j < iterations; j++) {
         gemm24(bigA, bigB, bigC);
@@ -86,17 +87,21 @@ __NO_RETURN int main() {
     arm_mat_init_f32(&armC, M, N, bigC);
 
     time = benchmarkArm(arm_mat_mult_f32, iterations, &status, &armA, &armB, &armC);
-    gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
+    gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
     sprintf(PRINTF_OUT_STRING, "CMSIS-DSP %dx%dx%d (%d): %f, %f, %f\r\n", M, K, N, time, bigC[0], result, gflops);
     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
     time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
+    gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
     sprintf(PRINTF_OUT_STRING, "GEMM JIT %dx%dx%d (%d): %f, %f, %f\r\n", M, K, N, time, bigC[0], result, gflops);
     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
 	initMatrices(bigA, bigB, bigC, bigCRef, M, N, K);
+    setupProfilingStalls();
+    startCounting();
     gemm24(bigA, bigB, bigC);
+    stopCounting();
+    printCounterStalls();
     gemm_reference_column_major(bigA, bigB, bigCRef, N, K, M, M, K, M);
     int32_t compareResult = compare(bigC, bigCRef, M*N);
     if (compareResult == -1) {
@@ -106,7 +111,7 @@ __NO_RETURN int main() {
     }
 
     SEGGER_RTT_printf(0, "M;K;N;Type;GFLOPS;Correct\n");
-    for (uint32_t i = 8; i < 60; i++) {
+    for (uint32_t i = 64; i < 70; i++) {
         //M = RTC_GetTimepoint() % 50 + 10;
         //RTC_Sleep(M);
         //N = RTC_GetTimepoint() % 50 + 10;
@@ -115,14 +120,14 @@ __NO_RETURN int main() {
         M = i;
         N = i;
         K = 5*i;
-        uint32_t flops = iterations * 2 * M * K * N;
+        uint32_t flops = 2 * M * K * N;
 
         arm_mat_init_f32(&armA, M, K, bigA);
         arm_mat_init_f32(&armB, K, N, bigB);
         arm_mat_init_f32(&armC, M, N, bigC);
 
         time = benchmarkArm(arm_mat_mult_f32, iterations, &status, &armA, &armB, &armC);
-        gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
+        gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
         sprintf(PRINTF_OUT_STRING, "%d;%d;%d;CMSIS-DSP;%f;1\r\n", M, K, N, gflops);
         SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
@@ -135,7 +140,7 @@ __NO_RETURN int main() {
         end = RTC_Clock::now();
 
         time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
+        gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
         initMatrices(bigA, bigB, bigC, bigCRef, M, N, K);
         gemm24(bigA, bigB, bigC);
         gemm_reference_column_major(bigA, bigB, bigCRef, N, K, M, M, K, M);

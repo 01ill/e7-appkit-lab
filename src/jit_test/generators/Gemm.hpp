@@ -14,6 +14,8 @@ namespace JIT {
 class JIT::Generators::Gemm {
     private:
         Backend backend;
+        void generateMicroKernel(uint32_t m, uint32_t k, uint32_t n, uint32_t lda, uint32_t ldb, uint32_t ldc, bool rewind = false);
+        void addImmediate(JIT::Instructions::Register reg, uint32_t immediate, JIT::Instructions::Register tempReg = Instructions::PC);
 
     public:
         using Func = void (*) (float const *, float const *, float *);
