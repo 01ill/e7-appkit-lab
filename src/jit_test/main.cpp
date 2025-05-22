@@ -38,15 +38,26 @@ static float b[peakCount];// __attribute__((used, section(".bss.array_region_sra
 static float c[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 */
 static constexpr uint32_t arrayMaxSize = 256;
-static uint32_t M = 6;
-static uint32_t K = 23;
-static uint32_t N = 2;
+
+#ifdef CONST_SIZE
+static const uint32_t M = 3;
+static const uint32_t K = 24;
+static const uint32_t N = 3;
+static float bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
+static float bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
+static float bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
+static float bigCRef[M*N] __attribute__((used, section(".bss.array_region_sram0")));*/
+#else
+static uint32_t M = 3;
+static uint32_t K = 24;
+static uint32_t N = 3;
 static float bigA[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigCRef[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
+#endif
 // extern JIT::Instructions::Instruction16 globalBuffer[1024]; // __attribute__((section(".itcm_jit")));
-JIT::Instructions::Instruction16 globalBuffer[1024] __attribute__((section(".itcm_jit"), aligned(4)));
+JIT::Instructions::Instruction16 globalBuffer[2048] __attribute__((section(".itcm_jit"), aligned(4)));
 
 void initMatrices(float * a, float * b, float * c, float * cref, const uint32_t m, const uint32_t n, const uint32_t k) {
     for (uint32_t i = 0; i < m*k; i++) a[i] = i;
@@ -66,7 +77,7 @@ __NO_RETURN int main() {
 	JIT::Generators::Gemm::Func gemm24 = gemmGen.generate(M, K, N, M, K, M);
 	gemm24 = gemmGen.bufferToFunc(globalBuffer);
 	// gemm24(bigA, bigB, bigC);
-    uint32_t iterations = 200;
+    uint32_t iterations = 4000;
     uint32_t time;
     double gflops;
     double result = 0.0f;
@@ -111,7 +122,7 @@ __NO_RETURN int main() {
     }
 
     SEGGER_RTT_printf(0, "M;K;N;Type;GFLOPS;Correct\n");
-    for (uint32_t i = 64; i < 70; i++) {
+    for (uint32_t i = 8; i < 60; i++) {
         //M = RTC_GetTimepoint() % 50 + 10;
         //RTC_Sleep(M);
         //N = RTC_GetTimepoint() % 50 + 10;

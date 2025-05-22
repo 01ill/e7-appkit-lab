@@ -91,6 +91,8 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
     // if not all elements fit into a single vector register, the instructions have to be predicated
     // the helium vector register can hold 4 fp32 values
     bool predicated = m % 4 != 0;
+    uint32_t maxSkippedAdds = VLDR_TRESHOLD / (4 * lda + 16);
+    maxSkippedAdds = maxSkippedAdds > 5 ? 5 : maxSkippedAdds; // limit unrolling to 5
 
     if (neededVectorRegisters > 8) {
         Instructions::Base::printValidationError("generateMicroKernel: dimensions too high - cant fit in vector registers");
@@ -98,6 +100,112 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         return;
     }
     if (m <= 4) {
+        bool useImmediateRow1 = 4 * ldc + 16 <= VLDR_TRESHOLD;
+        bool useImmediateRow2 = 8 * ldc + 16 <= VLDR_TRESHOLD;
+        bool useImmediateRow3 = 12 * ldc + 16 <= VLDR_TRESHOLD;
+        bool useImmediateRow4 = 16 * ldc + 16 <= VLDR_TRESHOLD;
+        bool useImmediateRow5 = 20 * ldc + 16 <= VLDR_TRESHOLD;
+        bool useImmediateRow6 = 24 * ldc + 16 <= VLDR_TRESHOLD;
+
+        uint32_t vldrImmA = 0;
+        // if the next vldrw can be used with an immediate, use the immediate instead of the add instruction
+        // to use this, we need to unroll the k loop
+        backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, (k-2) / maxSkippedAdds));
+
+        if (n == 3) backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, 8 * ldb)); // TODO use immediate (even though ldb <= 500 is supported). important as ldb = K for column major
+        if (n >= 2) backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4 * ldb));
+        backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
+
+
+        if (!useImmediateRow1 && n >= 2) backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_ROW1_Base, C_Pointer, 4 * ldc));
+        if (!useImmediateRow2 && n == 3) backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_ROW2_Base, C_Pointer, 8 * ldc));
+
+        backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
+        backend.addInstruction(Instructions::Vector::vldrw(C00_Register, C_Pointer));
+        backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
+        if (n >= 2) {
+            if (useImmediateRow1) backend.addInstruction(Instructions::Vector::vldrw(C10_Register, C_Pointer, 4 * ldc));
+            else backend.addInstruction(Instructions::Vector::vldrw(C10_Register, C_ROW1_Base));
+            backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
+        }
+        if (n >= 3) {
+            if (useImmediateRow2) backend.addInstruction(Instructions::Vector::vldrw(C20_Register, C_Pointer, 8 * ldc));
+            else backend.addInstruction(Instructions::Vector::vldrw(C20_Register, C_ROW2_Base));
+            backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
+        }
+
+        vldrImmA = lda * 4;
+        if (lda * 4 > VLDR_TRESHOLD) { // check if immediate can be used (only needed for really large sizes)
+            backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda * 4));
+            vldrImmA = 0;
+        }
+
+        backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, vldrImmA));
+        vldrImmA = 0;
+        backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda * 4));
+
+        if (n >= 2) backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb * 4));
+        if (n == 3) backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, ldb * 8));
+
+        Instructions::Instruction16 * kLoopStart;
+        if (k > 3) backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
+        if (k >= 3) {
+            for (uint32_t i = 0; i < maxSkippedAdds; i++) {
+                if (i == 0) {
+                    if (n == 1) kLoopStart = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
+                    else {
+                        kLoopStart = backend.addBranchTargetInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
+                        backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
+                    }
+                } else {
+                    if (n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
+                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
+                }
+                if (n == 3) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
+                if (n == 3) backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B2_Register, B_Pointer, LDB_REGISTER, 3));
+                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
+                backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, (i+1) * lda * 4));
+                if (n >= 2) backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
+            }
+            backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, maxSkippedAdds * lda * 4));
+        }
+        if (k > 3) backend.addLowOverheadBranchFromCurrentPosition(kLoopStart);
+        
+        // process rest of k-loop
+        for (uint32_t i = 0; i < (k-2) % maxSkippedAdds; i++) {
+            if (n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
+            backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
+            if (n == 3) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
+            backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
+            // add A_Pointer, i*lda
+            backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, (i+1) * lda * 4));
+            if (n >= 2) backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
+            if (n == 3) backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B2_Register, B_Pointer, LDB_REGISTER, 3));
+        }
+        // only add immediate if needed (TODO: is never needed and we can just use immediate in the next vldrw instructions)
+        if ((k-2) % maxSkippedAdds > 0) backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, ((k-2) % maxSkippedAdds) * lda * 4));
+        backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
+        if (predicated) { // predicate next 3 instructions
+            backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, m % 4)); // TODO move a bit earlier maybe (?)
+            backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, DLS_COUNT_REGISTER));
+            backend.addInstruction(Instructions::Vector::vpst(2));
+        }
+        backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
+        backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
+        if (predicated && n >= 2) { // predicate the next rows. only needed if the rows are used (i.e. for 4x2, 4x3 microkernel)
+            backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, DLS_COUNT_REGISTER));
+            backend.addInstruction(Instructions::Vector::vpst(n == 3 ? 4 : 2));
+        }
+        if (n >= 2) {
+            backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
+            if (useImmediateRow1) backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, ldc * 4));
+            else backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_ROW1_Base));
+        }
+        if (n == 3) {
+            backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
+            if (useImmediateRow2) backend.addInstruction(Instructions::Vector::vstrw(C20_Register, C_Pointer, ldc * 8));
+            else backend.addInstruction(Instructions::Vector::vstrw(C20_Register, C_ROW2_Base));
+        }
     } else if (m <= 8) {
         /* Load B */
         if (n == 3) backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, 8 * ldb)); // TODO use immediate (even though ldb <= 500 is supported). important as ldb = K for column major
@@ -105,7 +213,6 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
 
         if (k == 1) {
-
         } else {
             // determine if immediates can be used for loading/storing C
             // else we can use the extra registers for storing the pointers to the rows
@@ -358,112 +465,8 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
                 backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4*k));
                 // Rewind C => C += 8*4
                 backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, (m % 8) * 4));
-            } else if (m % 8 == 4) {
-                backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4*ldb));
-                // load b[2len]
-                backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, 8*ldb));
-                // load b[0] and write back
-                backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-                // init accumulators
-                backend.addInstruction(Instructions::Vector::vmovImmediate(C20_Register, 0, Instructions::I32));
-                backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-                backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C20_Register));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                backend.addInstruction(Instructions::Vector::vmovRegister(C10_Register, C20_Register));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-                backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-                backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                
-                // load next b values before loop start
-                backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb*4));
-                backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, ldb*8));
-                
-                // start k loop
-                backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-
-                Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-                backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-
-                backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
-                backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B2_Register, B_Pointer, LDB_REGISTER, 3));
-
-                // loop end
-                backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-                // last iteration (out of k loop)
-                backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-                backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, ldc*4));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-                backend.addInstruction(Instructions::Vector::vstrw(C20_Register, C_Pointer, ldc*8));
-
-                // Rewind
-                // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
-                // Rewind B => B = B - 4*k
-                backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4*k));
-                // Rewind C => C += 4*4
-                backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, 4*4));
             } else {
-                backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4*ldb));
-                // load b[2len]
-                backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, 8*ldb));
-                // load b[0] and write back
-                backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-                // init accumulators
-                backend.addInstruction(Instructions::Vector::vmovImmediate(C20_Register, 0, Instructions::I32));
-                backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-                backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C20_Register));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                backend.addInstruction(Instructions::Vector::vmovRegister(C10_Register, C20_Register));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-                // backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-                backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                
-                // load next b values before loop start
-                backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb*4));
-                backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, ldb*8));
-                
-                // start k loop
-                backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-                Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-                backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-
-                backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
-                backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B2_Register, B_Pointer, LDB_REGISTER, 3));
-
-                // loop end
-                backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-                // last iteration (out of k loop)
-                backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-                backend.addInstruction(Instructions::DataProcessing::movImmediate32(Instructions::R11, m % 4));
-                backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-                backend.addInstruction(Instructions::Vector::vpst(4));
-                backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-                backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-                backend.addInstruction(Instructions::Vector::vpst(3));
-                backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, ldc*4));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-                backend.addInstruction(Instructions::Vector::vstrw(C20_Register, C_Pointer, ldc*8));
+                generateMicroKernel(m % 8, k, 3, lda, ldb, ldc);
 
                 // Rewind
                 // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
@@ -517,92 +520,7 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
             backend.addBackwardsBranchFromCurrentPosition(iLoopStartjTail, Instructions::LT);
 
             if (m % 8 != 0) {
-                if (m % 8 > 4) {
-                    generateMicroKernel(m % 8, k, 2, lda, ldb, ldc);
-                } else if (m % 8 == 4) {
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4*ldb));
-                    // load b[0] and write back
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-                    // init accumulators
-                    backend.addInstruction(Instructions::Vector::vmovImmediate(C20_Register, 0, Instructions::I32));
-                    backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-                    backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C20_Register));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                    backend.addInstruction(Instructions::Vector::vmovRegister(C10_Register, C20_Register));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-                    backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-                    backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                    
-                    // load next b values before loop start
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb*4));
-                    
-                    // start k loop
-                    backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-
-                    Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                    backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                    backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-
-                    backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
-
-                    // loop end
-                    backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-                    // last iteration (out of k loop)
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                    backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-                    backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, ldc*4));
-                } else {
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4*ldb));
-                    // load b[0] and write back
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-                    // init accumulators
-                    backend.addInstruction(Instructions::Vector::vmovImmediate(C20_Register, 0, Instructions::I32));
-                    backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-                    backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C20_Register));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                    backend.addInstruction(Instructions::Vector::vmovRegister(C10_Register, C20_Register));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-                    // backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-                    backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                    
-                    // load next b values before loop start
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb*4));
-                    
-                    // start k loop
-                    backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-                    Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-                    backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                    backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-
-                    backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
-
-                    // loop end
-                    backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-                    // last iteration (out of k loop)
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-                    backend.addInstruction(Instructions::DataProcessing::movImmediate32(Instructions::R11, m % 4));
-                    backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-                    backend.addInstruction(Instructions::Vector::vpst(4));
-                    backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                    backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-                    backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-                    backend.addInstruction(Instructions::Vector::vpst(1));
-                    backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, ldc*4));
-                }
+                generateMicroKernel(m % 8, k, 2, lda, ldb, ldc);
             }
         }
         if (n % 3 == 1) {
@@ -613,7 +531,6 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
 
             // prepare for next i loop. execute earlier to access new i value
             backend.addInstruction(Instructions::Arithmetic::addImmediate32(I_Loop_Register, 8));
-
 
             // Rewind
             // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
@@ -628,69 +545,7 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
             backend.addBackwardsBranchFromCurrentPosition(iLoopStartjTail, Instructions::LT);
 
             if (m % 8 != 0) {
-                if (m % 8 > 4) {
-                    generateMicroKernel(m % 8, k, 1, lda, ldb, ldc);
-                } else if (m % 8 == 4) {
-                    // load b[0] and write back
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-                    // init accumulators
-                    backend.addInstruction(Instructions::Vector::vmovImmediate(C00_Register, 0, Instructions::I32));
-                    backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                    backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-                    backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                                    
-                    // start k loop
-                    backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-
-                    //Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-                    Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                    backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                    backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-
-                    // loop end
-                    backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-                    // last iteration (out of k loop)
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                    backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-                } else {
-                    // load b[0] and write back
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-                    // init accumulators
-                    backend.addInstruction(Instructions::Vector::vmovImmediate(C00_Register, 0, Instructions::I32));
-                    backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                    // backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-                    backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                    
-                    // load next b values before loop start
-                    
-                    // start k loop
-                    backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-                    Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-                    backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                    backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-
-                    // loop end
-                    backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-                    // last iteration (out of k loop)
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-                    backend.addInstruction(Instructions::DataProcessing::movImmediate32(Instructions::R11, m % 4));
-                    backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-                    backend.addInstruction(Instructions::Vector::vpst(3));
-                    backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                    backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-                }
+                generateMicroKernel(m % 8, k, 1, lda, ldb, ldc);
             }
         }
     }
@@ -703,724 +558,3 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
     __asm("isb");
     return reinterpret_cast<Func>(backend.getThumbAddress());
 }
-
-
-// void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint32_t lda, uint32_t ldb, uint32_t ldc)) (float const * a, float const * b, float * c) {
-//     backend.resetKernel();
-
-//     /*
-//      * INIT:
-//      * - Push callee saved registers and vector registers
-//      * - save base pointers
-//      * - initialize j counter
-//      */
-//     backend.addInstruction(JIT::Instructions::DataProcessing::push32(Instructions::R4, Instructions::R5, DLS_COUNT_REGISTER, Instructions::R7, Instructions::R8, Instructions::R9, Instructions::R10, Instructions::R11, Instructions::R12, Instructions::LR));
-//     backend.addInstruction(JIT::Instructions::DataProcessing::vpush(Instructions::Q4, 4));
-//     backend.addInstruction(JIT::Instructions::DataProcessing::movRegister32(A_Base_Pointer, A_Pointer)); // save a pointer
-//     backend.addInstruction(JIT::Instructions::DataProcessing::movImmediate32(J_Loop_Register, 0)); // mov 0 to r4
-//     backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, k-2));
-//     backend.addInstruction(Instructions::DataProcessing::movImmediate32(LDB_REGISTER, ldb));
-
-//     /*
-//     * Loop j (n loop): Count from 0 to n
-//     */
-//     Instructions::Instruction16 * jLoopStart = backend.addBranchTargetInstruction(Instructions::DataProcessing::movImmediate32(I_Loop_Register, 0));
-
-//     /*
-//     * Loop i (m loop): Count from 0 to m
-//     */
-//     Instructions::Instruction16 * iLoopStart = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4*ldb));
-//     // load b[2len]
-//     backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, 8*ldb));
-//     // load b[0] and write back
-//     backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-//     // init accumulators
-//     backend.addInstruction(Instructions::Vector::vmovImmediate(C21_Register, 0, Instructions::I32));
-//     backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//     backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C21_Register));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//     backend.addInstruction(Instructions::Vector::vmovRegister(C01_Register, C21_Register));
-//     backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//     backend.addInstruction(Instructions::Vector::vmovRegister(C10_Register, C21_Register));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//     backend.addInstruction(Instructions::Vector::vmovRegister(C11_Register, C21_Register));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
-//     backend.addInstruction(Instructions::Vector::vmovRegister(C20_Register, C21_Register));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-//     backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C21_Register, A1_Register, B2_Register));
-
-//     backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-    
-//     // load next b values before loop start
-//     backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb*4));
-//     backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, ldb*8));
-    
-//     // start k loop
-//     backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-
-//     Instructions::Instruction16 * kLoopStart = backend.addBranchTargetInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//     backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//     backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//     backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
-//     backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C21_Register, A1_Register, B2_Register));
-
-//     backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
-//     backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B2_Register, B_Pointer, LDB_REGISTER, 3));
-
-//     // loop end
-//     backend.addLowOverheadBranchFromCurrentPosition(kLoopStart);
-
-//     // last iteration (out of k loop)
-//     backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//     backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//     backend.addInstruction(Instructions::Vector::vstrw(C01_Register, C_Pointer, 16));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//     backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//     backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, ldc*4));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
-//     backend.addInstruction(Instructions::Vector::vstrw(C11_Register, C_Pointer, ldc*4 + 16));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-//     backend.addInstruction(Instructions::Vector::vstrw(C20_Register, C_Pointer, ldc*8));
-//     backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C21_Register, A1_Register, B2_Register));
-//     backend.addInstruction(Instructions::Vector::vstrw(C21_Register, C_Pointer, ldc*8 + 16));
-
-//     // prepare for next i loop. execute earlier to access new i value
-//     backend.addInstruction(Instructions::Arithmetic::addImmediate32(I_Loop_Register, 8));
-
-
-//     // Rewind
-//     // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
-//     backend.addInstruction(Instructions::Arithmetic::addRegister32(A_Pointer, A_Base_Pointer, I_Loop_Register, Instructions::LSL, 2));
-//     // backend.addInstruction(Instructions::DataProcessing::movRegister32(A_Pointer, A_Base_Pointer));
-//     // Rewind B => B = B - 4*k
-//     backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4*k));
-//     // Rewind C => C += 8*4
-//     backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, 8*4));
-
-//     // ensure that only full microkernels can be executed
-//     backend.addInstruction(Instructions::Base::cmpImmediate16(I_Loop_Register, m - (m % 8)));
-//     backend.addBackwardsBranchFromCurrentPosition(iLoopStart, Instructions::LT);
-
-//     // handle i loop edge cases
-//     if (m % 8 != 0) {
-//         // we can use two vector registers if m % 8 > 4 (else use only 1 vector register)
-//         // if two vector registers for A are used, then an predicated 8x3 microkernel is employed
-//         // only certain instructions are predicated as only those are important for the validity:
-//         //      - last load
-//         //      - all stores
-
-//         // if one vector register is used, try to employ an (if needed predicated) 4x7 microkernel
-//         if (m % 8 > 4) {
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4*ldb));
-//             // load b[2len]
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, 8*ldb));
-//             // load b[0] and write back
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-//             // init accumulators
-//             backend.addInstruction(Instructions::Vector::vmovImmediate(C21_Register, 0, Instructions::I32));
-//             backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//             backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C21_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//             backend.addInstruction(Instructions::Vector::vmovRegister(C01_Register, C21_Register));
-//             backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//             backend.addInstruction(Instructions::Vector::vmovRegister(C10_Register, C21_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//             backend.addInstruction(Instructions::Vector::vmovRegister(C11_Register, C21_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
-//             backend.addInstruction(Instructions::Vector::vmovRegister(C20_Register, C21_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-//             backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C21_Register, A1_Register, B2_Register));
-
-//             backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-            
-//             // load next b values before loop start
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb*4));
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, ldb*8));
-            
-//             // start k loop
-//             backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-
-//             Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//             backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//             backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
-//             backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C21_Register, A1_Register, B2_Register));
-
-//             backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
-//             backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B2_Register, B_Pointer, LDB_REGISTER, 3));
-
-//             // loop end
-//             backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-//             // last iteration (out of k loop)
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//             backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//             backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, ldc*4));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-//             backend.addInstruction(Instructions::Vector::vstrw(C20_Register, C_Pointer, ldc*8));
-//             backend.addInstruction(Instructions::DataProcessing::movImmediate32(Instructions::R11, m % 4));
-//             backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-//             backend.addInstruction(Instructions::Vector::vpst(4));
-//             backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//             backend.addInstruction(Instructions::Vector::vstrw(C01_Register, C_Pointer, 16));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
-//             backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-//             backend.addInstruction(Instructions::Vector::vpst(3));
-//             backend.addInstruction(Instructions::Vector::vstrw(C11_Register, C_Pointer, ldc*4 + 16));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C21_Register, A1_Register, B2_Register));
-//             backend.addInstruction(Instructions::Vector::vstrw(C21_Register, C_Pointer, ldc*8 + 16));
-
-//             // prepare for next i loop. execute earlier to access new i value
-//             // backend.addInstruction(Instructions::Arithmetic::addImmediate32(I_Loop_Register, 8));
-
-
-//             // Rewind
-//             // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
-//             // Rewind B => B = B - 4*k
-//             backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4*k));
-//             // Rewind C => C += 8*4
-//             backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, (m%8)*4));
-//         } else if (m % 8 == 4) {
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4*ldb));
-//             // load b[2len]
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, 8*ldb));
-//             // load b[0] and write back
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-//             // init accumulators
-//             backend.addInstruction(Instructions::Vector::vmovImmediate(C20_Register, 0, Instructions::I32));
-//             backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//             backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C20_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//             backend.addInstruction(Instructions::Vector::vmovRegister(C10_Register, C20_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-//             backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-//             backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-            
-//             // load next b values before loop start
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb*4));
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, ldb*8));
-            
-//             // start k loop
-//             backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-
-//             Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//             backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-//             backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-
-//             backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
-//             backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B2_Register, B_Pointer, LDB_REGISTER, 3));
-
-//             // loop end
-//             backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-//             // last iteration (out of k loop)
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//             backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//             backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, ldc*4));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-//             backend.addInstruction(Instructions::Vector::vstrw(C20_Register, C_Pointer, ldc*8));
-
-//             // Rewind
-//             // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
-//             // Rewind B => B = B - 4*k
-//             backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4*k));
-//             // Rewind C => C += 4*4
-//             backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, 4*4));
-//         } else {
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4*ldb));
-//             // load b[2len]
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, 8*ldb));
-//             // load b[0] and write back
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-//             // init accumulators
-//             backend.addInstruction(Instructions::Vector::vmovImmediate(C20_Register, 0, Instructions::I32));
-//             backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//             backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C20_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//             backend.addInstruction(Instructions::Vector::vmovRegister(C10_Register, C20_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-//             // backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-//             backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-            
-//             // load next b values before loop start
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb*4));
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, ldb*8));
-            
-//             // start k loop
-//             backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-//             Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//             backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//             backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-
-//             backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
-//             backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B2_Register, B_Pointer, LDB_REGISTER, 3));
-
-//             // loop end
-//             backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-//             // last iteration (out of k loop)
-//             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//             backend.addInstruction(Instructions::DataProcessing::movImmediate32(Instructions::R11, m % 4));
-//             backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-//             backend.addInstruction(Instructions::Vector::vpst(4));
-//             backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//             backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//             backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-//             backend.addInstruction(Instructions::Vector::vpst(3));
-//             backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, ldc*4));
-//             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-//             backend.addInstruction(Instructions::Vector::vstrw(C20_Register, C_Pointer, ldc*8));
-
-//             // Rewind
-//             // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
-//             // Rewind B => B = B - 4*k
-//             backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4*k));
-//             // Rewind C => C += 4*4
-//             backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, (m % 8) * 4));
-//         }
-//     }
-
-//     // gemm loop i end (next j)
-//     // Rewind A -> already rewinded by i so need to reset
-//     backend.addInstruction(Instructions::DataProcessing::movRegister32(A_Pointer, A_Base_Pointer));
-//     // Rewind B -> rewinded by i to start. add 3*len
-//     backend.addInstruction(Instructions::Arithmetic::addImmediate32(B_Pointer, ldb*3*4));
-//     // Rewind C -> still have to go two lines -> 2ldc
-//     backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, 2*ldc*4));
-
-//     backend.addInstruction(Instructions::Arithmetic::addImmediate32(J_Loop_Register, 3));
-//     backend.addInstruction(Instructions::Base::cmpImmediate16(J_Loop_Register, n - (n % 3)));
-//     backend.addBackwardsBranchFromCurrentPosition(jLoopStart, Instructions::LT);
-
-//     // handle j loop edge cases
-//     if (n % 3 == 2) { // 8x2 kernel
-//         /*
-//         * Loop i (m loop): Count from 0 to m
-//         */
-//         backend.addInstruction(Instructions::DataProcessing::movImmediate32(I_Loop_Register, 0));
-//         Instructions::Instruction16 * iLoopStartjTail = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4*ldb));
-//         // load b[0] and write back
-//         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-//         // init accumulators
-//         backend.addInstruction(Instructions::Vector::vmovImmediate(C11_Register, 0, Instructions::I32));
-//         backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//         backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C11_Register));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//         backend.addInstruction(Instructions::Vector::vmovRegister(C01_Register, C11_Register));
-//         backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//         backend.addInstruction(Instructions::Vector::vmovRegister(C10_Register, C11_Register));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
-//         backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-//         backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-        
-//         // load next b values before loop start
-//         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb*4));
-//         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, ldb*8));
-        
-//         // start k loop
-//         backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-
-//         Instructions::Instruction16 * kLoopStartjTail = backend.addBranchTargetInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//         backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//         backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
-//         backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-
-//         backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
-
-//         // loop end
-//         backend.addLowOverheadBranchFromCurrentPosition(kLoopStartjTail);
-
-//         // last iteration (out of k loop)
-//         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//         backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//         backend.addInstruction(Instructions::Vector::vstrw(C01_Register, C_Pointer, 16));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//         backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//         backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, ldc*4));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
-//         backend.addInstruction(Instructions::Vector::vstrw(C11_Register, C_Pointer, ldc*4 + 16));
-
-//         // prepare for next i loop. execute earlier to access new i value
-//         backend.addInstruction(Instructions::Arithmetic::addImmediate32(I_Loop_Register, 8));
-
-
-//         // Rewind
-//         // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
-//         backend.addInstruction(Instructions::Arithmetic::addRegister32(A_Pointer, A_Base_Pointer, I_Loop_Register, Instructions::LSL, 2));
-//         // backend.addInstruction(Instructions::DataProcessing::movRegister32(A_Pointer, A_Base_Pointer));
-//         // Rewind B => B = B - 4*k
-//         backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4*k));
-//         // Rewind C => C += 8*4
-//         backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, 8*4));
-
-//         // ensure that only full microkernels can be executed
-//         backend.addInstruction(Instructions::Base::cmpImmediate16(I_Loop_Register, m - (m % 8)));
-//         backend.addBackwardsBranchFromCurrentPosition(iLoopStartjTail, Instructions::LT);
-
-//         if (m % 8 != 0) {
-//             if (m % 8 > 4) {
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4*ldb));
-//                 // load b[0] and write back
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-//                 // init accumulators
-//                 backend.addInstruction(Instructions::Vector::vmovImmediate(C21_Register, 0, Instructions::I32));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//                 backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C21_Register));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vmovRegister(C01_Register, C21_Register));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vmovRegister(C10_Register, C21_Register));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//                 backend.addInstruction(Instructions::Vector::vmovRegister(C11_Register, C21_Register));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-//                 backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                
-//                 // load next b values before loop start
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb*4));
-                
-//                 // start k loop
-//                 backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-
-//                 Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-
-//                 backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
-
-//                 // loop end
-//                 backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-//                 // last iteration (out of k loop)
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//                 backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, ldc*4));
-//                 backend.addInstruction(Instructions::DataProcessing::movImmediate32(Instructions::R11, m % 4));
-//                 backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-//                 backend.addInstruction(Instructions::Vector::vpst(4));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vstrw(C01_Register, C_Pointer, 16));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
-//                 backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-//                 backend.addInstruction(Instructions::Vector::vpst(1));
-//                 backend.addInstruction(Instructions::Vector::vstrw(C11_Register, C_Pointer, ldc*4 + 16));
-//             } else if (m % 8 == 4) {
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4*ldb));
-//                 // load b[0] and write back
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-//                 // init accumulators
-//                 backend.addInstruction(Instructions::Vector::vmovImmediate(C20_Register, 0, Instructions::I32));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//                 backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C20_Register));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vmovRegister(C10_Register, C20_Register));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-//                 backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                
-//                 // load next b values before loop start
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb*4));
-                
-//                 // start k loop
-//                 backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-
-//                 Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-
-//                 backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
-
-//                 // loop end
-//                 backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-//                 // last iteration (out of k loop)
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//                 backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, ldc*4));
-//             } else {
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4*ldb));
-//                 // load b[0] and write back
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-//                 // init accumulators
-//                 backend.addInstruction(Instructions::Vector::vmovImmediate(C20_Register, 0, Instructions::I32));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//                 backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C20_Register));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vmovRegister(C10_Register, C20_Register));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//                 // backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-//                 backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                
-//                 // load next b values before loop start
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb*4));
-                
-//                 // start k loop
-//                 backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-//                 Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-
-//                 backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
-
-//                 // loop end
-//                 backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-//                 // last iteration (out of k loop)
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//                 backend.addInstruction(Instructions::DataProcessing::movImmediate32(Instructions::R11, m % 4));
-//                 backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-//                 backend.addInstruction(Instructions::Vector::vpst(4));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//                 backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-//                 backend.addInstruction(Instructions::Vector::vpst(1));
-//                 backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, ldc*4));
-//             }
-//         }
-//     }
-//     if (n % 3 == 1) {
-//         backend.addInstruction(Instructions::DataProcessing::movImmediate32(I_Loop_Register, 0));
-//         Instructions::Instruction16 * iLoopStartjTail = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4*ldb));
-//         // load b[0] and write back
-//         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-//         // init accumulators
-//         backend.addInstruction(Instructions::Vector::vmovImmediate(C01_Register, 0, Instructions::I32));
-//         backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//         backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C01_Register));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//         backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//         backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-//         backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-        
-//         // load next b values before loop start
-//         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, ldb*4));
-//         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, ldb*8));
-        
-//         // start k loop
-//         backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-
-//         Instructions::Instruction16 * kLoopStartjTail = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//         backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//         backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-//         backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-
-//         backend.addInstruction(Instructions::DataProcessing::ldrRegister32(B1_Register, B_Pointer, LDB_REGISTER, 2));
-
-//         // loop end
-//         backend.addLowOverheadBranchFromCurrentPosition(kLoopStartjTail);
-
-//         // last iteration (out of k loop)
-//         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//         backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//         backend.addInstruction(Instructions::Vector::vstrw(C01_Register, C_Pointer, 16));
-//         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//         backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-
-//         // prepare for next i loop. execute earlier to access new i value
-//         backend.addInstruction(Instructions::Arithmetic::addImmediate32(I_Loop_Register, 8));
-
-
-//         // Rewind
-//         // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
-//         backend.addInstruction(Instructions::Arithmetic::addRegister32(A_Pointer, A_Base_Pointer, I_Loop_Register, Instructions::LSL, 2));
-//         // Rewind B => B = B - 4*k
-//         backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4*k));
-//         // Rewind C => C += 8*4
-//         backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, 8*4));
-
-//         // ensure that only full microkernels can be executed
-//         backend.addInstruction(Instructions::Base::cmpImmediate16(I_Loop_Register, m - (m % 8)));
-//         backend.addBackwardsBranchFromCurrentPosition(iLoopStartjTail, Instructions::LT);
-
-//         if (m % 8 != 0) {
-//             if (m % 8 > 4) {
-//                 // load b[0] and write back
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-//                 // init accumulators
-//                 backend.addInstruction(Instructions::Vector::vmovImmediate(C21_Register, 0, Instructions::I32));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//                 backend.addInstruction(Instructions::Vector::vmovRegister(C00_Register, C21_Register));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vmovRegister(C01_Register, C21_Register));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-//                 backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                                
-//                 // start k loop
-//                 backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-
-//                 Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-//                 backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-
-//                 // loop end
-//                 backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-//                 // last iteration (out of k loop)
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-//                 backend.addInstruction(Instructions::DataProcessing::movImmediate32(Instructions::R11, m % 4));
-//                 backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-//                 backend.addInstruction(Instructions::Vector::vpst(3));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vstrw(C01_Register, C_Pointer, 16));
-
-//                 // prepare for next i loop. execute earlier to access new i value
-//                 // backend.addInstruction(Instructions::Arithmetic::addImmediate32(I_Loop_Register, 8));
-//             } else if (m % 8 == 4) {
-//                 // load b[0] and write back
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-//                 // init accumulators
-//                 backend.addInstruction(Instructions::Vector::vmovImmediate(C00_Register, 0, Instructions::I32));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-//                 backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                                
-//                 // start k loop
-//                 backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-
-//                 //Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-//                 Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-
-//                 // loop end
-//                 backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-//                 // last iteration (out of k loop)
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-//             } else {
-//                 // load b[0] and write back
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-
-//                 // init accumulators
-//                 backend.addInstruction(Instructions::Vector::vmovImmediate(C00_Register, 0, Instructions::I32));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 // backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, lda*4));
-
-//                 backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-                
-//                 // load next b values before loop start
-                
-//                 // start k loop
-//                 backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
-//                 Instructions::Instruction16 * kLoopStartTail = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda*4));
-
-//                 // loop end
-//                 backend.addLowOverheadBranchFromCurrentPosition(kLoopStartTail);
-
-//                 // last iteration (out of k loop)
-//                 backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 4, false, true));
-//                 backend.addInstruction(Instructions::DataProcessing::movImmediate32(Instructions::R11, m % 4));
-//                 backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, Instructions::R11));
-//                 backend.addInstruction(Instructions::Vector::vpst(3));
-//                 backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
-//                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-//                 backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
-//             }
-//         }
-//     }
-
-//     // gemm loop j end
-//     backend.addInstruction(Instructions::DataProcessing::vpop(Instructions::Q4, 4));
-//     backend.addInstruction(Instructions::DataProcessing::pop32(Instructions::R4, Instructions::R5, DLS_COUNT_REGISTER, Instructions::R7, Instructions::R8, Instructions::R9, Instructions::R10, Instructions::R11, Instructions::R12, Instructions::PC));
-
-//     __asm("dsb");
-//     __asm("isb");
-//     return reinterpret_cast<Func>(backend.getThumbAddress());
-// }

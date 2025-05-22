@@ -40,7 +40,7 @@ class JIT::Backend {
         }
 
     private:
-        Instructions::Instruction16 instructions[1024] = {0};
+        Instructions::Instruction16 instructions[2048] = {0};
         uint16_t instructionCount = 0;
 };
 
