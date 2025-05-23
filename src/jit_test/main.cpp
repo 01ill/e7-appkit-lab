@@ -20,7 +20,6 @@
 float gemm_reference_column_major(const float * __restrict__ a, const float * __restrict__ b, float * __restrict__ c, const uint32_t n, const uint32_t k, const uint32_t m, const uint32_t lda, const uint32_t ldb, const uint32_t ldc) {
     for (uint32_t j = 0; j < n; j++) { // j = n
         for (uint32_t i = 0; i < m; i++) { // i = m
-            // c[j * len + i] = 0.0f;
             for (uint32_t p = 0; p < k; p++) { // p = k
                 c[j * ldc + i] += a[p * lda + i] * b[j * ldb + p];
             }
@@ -29,25 +28,23 @@ float gemm_reference_column_major(const float * __restrict__ a, const float * __
     return c[0];
 }
 
-
-
 static char PRINTF_OUT_STRING[256] __attribute__((used, section(".bss.array_region_sram0")));
 /*constexpr uint32_t peakCount = 50000;
 static float a[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 static float b[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 static float c[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 */
-static constexpr uint32_t arrayMaxSize = 256;
-
+#define CONST_SIZE
 #ifdef CONST_SIZE
-static const uint32_t M = 3;
-static const uint32_t K = 24;
-static const uint32_t N = 3;
+static const uint32_t M = 8;
+static const uint32_t K = 8;
+static const uint32_t N = 5000;
 static float bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
-static float bigCRef[M*N] __attribute__((used, section(".bss.array_region_sram0")));*/
+static float bigCRef[M*N] __attribute__((used, section(".bss.array_region_sram0")));
 #else
+static constexpr uint32_t arrayMaxSize = 256;
 static uint32_t M = 3;
 static uint32_t K = 24;
 static uint32_t N = 3;
@@ -56,7 +53,7 @@ static float bigB[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".b
 static float bigC[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigCRef[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
 #endif
-// extern JIT::Instructions::Instruction16 globalBuffer[1024]; // __attribute__((section(".itcm_jit")));
+
 JIT::Instructions::Instruction16 globalBuffer[2048] __attribute__((section(".itcm_jit"), aligned(4)));
 
 void initMatrices(float * a, float * b, float * c, float * cref, const uint32_t m, const uint32_t n, const uint32_t k) {
@@ -121,6 +118,7 @@ __NO_RETURN int main() {
         SEGGER_RTT_printf(0, "GEMM-JIT: Test nicht erfolgreich bei %d\n", compareResult);
     }
 
+#ifndef CONST_SIZE
     SEGGER_RTT_printf(0, "M;K;N;Type;GFLOPS;Correct\n");
     for (uint32_t i = 8; i < 60; i++) {
         //M = RTC_GetTimepoint() % 50 + 10;
@@ -164,7 +162,7 @@ __NO_RETURN int main() {
             SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
         }
     }
-
+#endif
 	LPRTC::getInstance().disable();
 	while (1) {
 		__WFE();
