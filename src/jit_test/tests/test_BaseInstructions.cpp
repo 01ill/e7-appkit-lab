@@ -56,6 +56,23 @@ TEST_CASE("CMP encodes correctly", "[CMP]") {
         REQUIRE(Base::cmpRegister16(R3, R10) == 0x4553);
     }
 }
+
+TEST_CASE("CMP Immediate 32 encodes correctly", "[CMP]") {
+    SECTION("CMP Immediate 32") {
+        REQUIRE(Base::cmpImmediate32(R10, 0x00af00af) == 0xf1ba1faf);
+        REQUIRE(Base::cmpImmediate32(R10, 0xafafafaf) == 0xf1ba3faf);
+        REQUIRE(Base::cmpImmediate32(R10, 0xaf00af00) == 0xf1ba2faf);
+        REQUIRE(Base::cmpImmediate32(R10, 0x8f00'0000) == 0xf1ba'4f0f);
+        REQUIRE(Base::cmpImmediate32(R10, 0x0000'01fe) == 0xf5ba'7fff);
+    }
+
+    SECTION("invalid immediates") {
+        REQUIRE(Base::cmpImmediate32(R10, 0x0000'01ff) == Base::nop32());
+        REQUIRE(Base::cmpImmediate32(R10, 0x001f'00fe) == Base::nop32());
+        REQUIRE(Base::cmpImmediate32(R10, 0x1000'0001) == Base::nop32());
+        REQUIRE(Base::cmpImmediate32(R10, 0x0110'1000) == Base::nop32());
+    }
+}
 /*
 TEST_CASE("B encodes correctly", "[B]") {
     SECTION("Bcond16 - 1") {
@@ -68,3 +85,48 @@ TEST_CASE("B encodes correctly", "[B]") {
         REQUIRE(Base::bCond16(GE, 2) == 0xdaff);
     }
 }*/
+
+
+TEST_CASE("Immediate Constants", "[Immediate]") {
+    SECTION("Correct Immediates") {
+        REQUIRE(Base::canEncodeImmediateConstant(0x0000'00ae) == true);
+        REQUIRE(Base::canEncodeImmediateConstant(0x0000'00fe) == true);
+        REQUIRE(Base::canEncodeImmediateConstant(0x0000'0001) == true);
+        REQUIRE(Base::canEncodeImmediateConstant(0x0000'0000) == true);
+        
+        REQUIRE(Base::canEncodeImmediateConstant(0x00ae'00ae) == true);
+        REQUIRE(Base::canEncodeImmediateConstant(0x00fe'00fe) == true);
+        REQUIRE(Base::canEncodeImmediateConstant(0x0001'0001) == true);
+
+        REQUIRE(Base::canEncodeImmediateConstant(0xae00'ae00) == true);
+        REQUIRE(Base::canEncodeImmediateConstant(0xfe00'fe00) == true);
+        REQUIRE(Base::canEncodeImmediateConstant(0x0100'0100) == true);
+
+
+        REQUIRE(Base::canEncodeImmediateConstant(0xaeae'aeae) == true);
+        REQUIRE(Base::canEncodeImmediateConstant(0xfefe'fefe) == true);
+        REQUIRE(Base::canEncodeImmediateConstant(0x0101'0101) == true);
+
+
+        REQUIRE(Base::canEncodeImmediateConstant(0xaf00'0000) == true);
+        REQUIRE(Base::canEncodeImmediateConstant(0x4f80'0000) == true);
+        REQUIRE(Base::canEncodeImmediateConstant(0x2fc0'0000) == true);
+        REQUIRE(Base::canEncodeImmediateConstant(0x0000'07c8) == true);
+        REQUIRE(Base::canEncodeImmediateConstant(0x0000'01fe) == true);
+    }
+
+    SECTION("Incorrect Immediates") {
+        REQUIRE(Base::canEncodeImmediateConstant(0x0000'01ff) == false);
+        REQUIRE(Base::canEncodeImmediateConstant(0x001f'00fe) == false);
+        REQUIRE(Base::canEncodeImmediateConstant(0x1000'0001) == false);
+        REQUIRE(Base::canEncodeImmediateConstant(0x0110'1000) == false);
+        
+        REQUIRE(Base::canEncodeImmediateConstant(0x2fc0'0100) == false);
+        REQUIRE(Base::canEncodeImmediateConstant(0x0000'17c8) == false);
+        REQUIRE(Base::canEncodeImmediateConstant(0x0000'11fe) == false);
+        REQUIRE(Base::canEncodeImmediateConstant(0xfeae'aeae) == false);
+        REQUIRE(Base::canEncodeImmediateConstant(0xaefe'aeae) == false);
+        REQUIRE(Base::canEncodeImmediateConstant(0xaeae'afae) == false);
+        REQUIRE(Base::canEncodeImmediateConstant(0xaeae'afaf) == false);
+    }
+}

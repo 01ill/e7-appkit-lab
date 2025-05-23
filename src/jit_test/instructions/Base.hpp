@@ -202,6 +202,21 @@ class JIT::Instructions::Base {
          * Dual Issue: 11
          */
         static Instruction16 cmpImmediate16(Register Rn, uint8_t imm8);
+
+        /**
+         * @brief Compare Immediate: Subtracts immediate value from register and updates flags. Result is discarded
+         * 
+         * @param Rn Source register
+         * @param imm8 Immediate value
+         * @return Instruction32
+         * @see C2.4.40, Encoding T2, p. 600
+
+         * -- Performance -- (p. 23)
+         * Latency: 1
+         * Throughput: 1
+         */
+        static Instruction32 cmpImmediate32(Register Rn, uint32_t constant);
+
         /**
          * @brief Compare Register
          *  Subtracts optionally-shifted (for T3) register value from register value.
@@ -256,6 +271,14 @@ class JIT::Instructions::Base {
          * @return Instruction16 
          */
         static Instruction16 udf(uint8_t imm8);
+
+        /**
+         * @brief Check if instructions can encode the passed 32bit immediate
+         * 
+         * @return true If the instruction can encode the 32bit immediate as a constant
+         * @return false If the instruction can't encode the 32bit immediate
+         */
+        static bool canEncodeImmediateConstant(uint32_t const);
 };
 
 #endif // BASE_HPP

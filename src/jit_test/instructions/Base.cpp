@@ -1,5 +1,6 @@
 #include "Base.hpp"
 #include <cstdint>
+#include <cstdio>
 
 using namespace JIT::Instructions;
 
@@ -64,6 +65,71 @@ Instruction16 Base::cmpImmediate16(Register Rn, uint8_t imm8) {
     instr |= imm8;
     instr |= Rn << 8;
     return instr;
+}
+
+Instruction32 Base::cmpImmediate32(Register Rn, uint32_t constant) {
+    Instruction32 instr = 0xf1b0'0f00;
+
+    if (!canEncodeImmediateConstant(constant)) {
+        Base::printValidationError("cmpImmediate32: constant can't be encoded - returning nop");
+        return Base::nop32();
+    }
+    instr |= Rn << 16;
+
+    // imm 0000x
+    // const 0000000 00000000 00000000 abcdefgh
+    if ((0xffff'ff00 & constant) == 0) {
+        instr |= 0xff & constant; // imm8
+        instr |= 0 << 26; // i
+        instr |= 0x0 << 12; // imm3
+        return instr;
+    }
+
+    // imm 0001x
+    // const 00000000 abcdefgh 00000000 abcdefgh
+    if ((0xff00'ff00 & constant) == 0 && (0xff & (constant >> 16)) == (0xff & constant)) {
+        instr |= 0xff & constant; // imm8
+        instr |= 0 << 26; // i
+        instr |= 0x1 << 12; // imm3
+        return instr;
+    }
+
+    // imm 0010x
+    // const abcdefgh 00000000 abcdefgh 00000000
+    if ((0x00ff'00ff & constant) == 0 && (0x0000'ff00 & (constant >> 16)) == (0x0000'ff00 & constant)) {
+        instr |= 0xff & (constant >> 8); // imm8
+        instr |= 0 << 26; // i
+        instr |= 0x2 << 12; // imm3
+        return instr;
+    }
+
+    // imm 0011x
+    // const abcdefgh abcdefgh abcdefgh abcdefgh
+    if (((0xff) & constant) == (0xff & (constant >> 8)) && ((0xff) & constant) == (0xff & (constant >> 16)) && ((0xff) & constant) == (0xff & (constant >> 24))) {
+        instr |= 0xff & constant; // imm8
+        instr |= 0 << 26U; // i
+        instr |= 0x3 << 12U; // imm3
+        return instr;
+    }
+
+    // const 00...1bcdefgh0000....
+    for (uint32_t i = 31; i >= 8; i--) {
+        if ((constant >> i) == 1 && (0x00ff'ffff & (constant << (31-i))) == 0) {
+            // i:imm3:a for 31: 01000 = 8
+            // i:imm3:a for 8: 11111 = 31
+            // => 39-31 = 8, 39-30 = 9, ... 39-8 = 31
+            uint8_t imm = 39 - i;
+            instr |= (0x7 & (imm >> 1)) << 12; // imm3
+            instr |= (0x1 & (imm >> 4)) << 26; // i
+            instr |= (0x1 & imm) << 7; // a
+            // for i = 31, shift 24; for i = 30, shift 23 ==> offset of 7
+            instr |= 0x7f & (constant >> (i - 7));
+            return instr;
+        }
+    }
+
+    Base::printValidationError("cmpImmediate32: constant wasn't encoded - returning nop");
+    return Base::nop32();
 }
 
 Instruction16 Base::cmpRegister16(Register Rn, Register Rm) {
@@ -136,7 +202,6 @@ Instruction32 Base::bCond32(Condition cond, int32_t label) {
 
 // imm32 = S:I2:I1:imm10:imm11:0
 Instruction32 Base::b32(uint32_t label) {
-
     return Base::nop32();
 }
 
@@ -144,4 +209,44 @@ Instruction16 Base::udf(uint8_t imm8) {
     Instruction16 instr = 0xde00;
     instr |= imm8;
     return instr;
+}
+
+// C1.5 Modified immediate constants, p. 473 
+bool Base::canEncodeImmediateConstant(uint32_t constant) {
+    // imm 0000x
+    // const 0000000 00000000 00000000 abcdefgh
+    if ((0xffff'ff00 & constant) == 0) {
+        return true;
+    }
+
+    // imm 0001x
+    // const 00000000 abcdefgh 00000000 abcdefgh
+    if ((0xff00'ff00 & constant) == 0 && (0xff & (constant >> 16)) == (0xff & constant)) {
+        return true;
+    }
+
+    // imm 0010x
+    // const abcdefgh 00000000 abcdefgh 00000000
+    if ((0x00ff'00ff & constant) == 0 && (0x0000'ff00 & (constant >> 16)) == (0x0000'ff00 & constant)) {
+        return true;
+    }
+
+    // imm 0011x
+    // const abcdefgh abcdefgh abcdefgh abcdefgh
+    if (((0xff) & constant) == (0xff & (constant >> 8)) && ((0xff) & constant) == (0xff & (constant >> 16)) && ((0xff) & constant) == (0xff & (constant >> 24))) {
+        return true;
+    }
+
+    // const 00...1bcdefgh0000....
+    for (uint32_t i = 31; i >= 8; i--) {
+        if ((constant >> i) == 1 && (0x00ff'ffff & (constant << (31-i))) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool canEncodeMVEImmediateConstant(uint32_t constant) {
+    return false;
 }
