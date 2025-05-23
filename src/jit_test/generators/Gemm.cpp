@@ -43,6 +43,10 @@ constexpr JIT::Instructions::Register C_ROW2_Base = JIT::Instructions::R11;
 
 constexpr uint32_t VLDR_TRESHOLD = 508;
 constexpr uint32_t LDR_TRESHOLD = 4095;
+constexpr uint32_t K_MAX_UNROLL = 5;
+/* Use 8x3 microkernel by default */
+constexpr uint32_t DEFAULT_MICROKERNEL_M = 8;
+constexpr uint32_t DEFAULT_MICROKERNEL_N = 3;
 
 /*
 Column-Major:
@@ -92,7 +96,7 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
     // the helium vector register can hold 4 fp32 values
     bool predicated = m % 4 != 0;
     uint32_t maxSkippedAdds = VLDR_TRESHOLD / (4 * lda + 16);
-    maxSkippedAdds = maxSkippedAdds > 5 ? 5 : maxSkippedAdds; // limit unrolling to 5
+    maxSkippedAdds = maxSkippedAdds > K_MAX_UNROLL ? K_MAX_UNROLL : maxSkippedAdds; // limit k unrolling
 
     if (neededVectorRegisters > 8) {
         Instructions::Base::printValidationError("generateMicroKernel: dimensions too high - cant fit in vector registers");
@@ -401,7 +405,6 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
     backend.addInstruction(JIT::Instructions::DataProcessing::vpush(Instructions::Q4, 4));
     backend.addInstruction(JIT::Instructions::DataProcessing::movRegister32(A_Base_Pointer, A_Pointer)); // save a pointer
     backend.addInstruction(JIT::Instructions::DataProcessing::movImmediate32(J_Loop_Register, 0)); // mov 0 to r4
-    backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, k-2));
     backend.addInstruction(Instructions::DataProcessing::movImmediate32(LDB_REGISTER, ldb));
 
     // can be solved by using a single microkernel (no loops required)
@@ -425,10 +428,10 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
         */
         Instructions::Instruction16 * iLoopStart = backend.addBranchTargetInstruction(Instructions::Base::nop32());
 
-        generateMicroKernel(8, k, 3, lda, ldb, ldc);
+        generateMicroKernel(DEFAULT_MICROKERNEL_M, k, DEFAULT_MICROKERNEL_N, lda, ldb, ldc);
 
         // prepare for next i loop. execute earlier to access new i value
-        backend.addInstruction(Instructions::Arithmetic::addImmediate32(I_Loop_Register, 8));
+        backend.addInstruction(Instructions::Arithmetic::addImmediate32(I_Loop_Register, DEFAULT_MICROKERNEL_M));
         backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, k-2));
 
         // Rewind
@@ -436,116 +439,66 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
         backend.addInstruction(Instructions::Arithmetic::addRegister32(A_Pointer, A_Base_Pointer, I_Loop_Register, Instructions::LSL, 2));
         // backend.addInstruction(Instructions::DataProcessing::movRegister32(A_Pointer, A_Base_Pointer));
         // Rewind B => B = B - 4*k
-        backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4*k));
-        // Rewind C => C += 8*4
-        backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, 8*4));
+        // b will be incremented in each k-Iteration by ldr r7, [r1], #4. this is done k times and needs to be reverted
+        backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4 * k));
+        // Forward C => C += 8*4
+        // After each block is computed in the m-loop, C has to move forward to the next block
+        backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, DEFAULT_MICROKERNEL_M * 4));
 
         // ensure that only full microkernels can be executed
-        backend.addInstruction(Instructions::Base::cmpImmediate16(I_Loop_Register, m - (m % 8)));
+        backend.addInstruction(Instructions::Base::cmpImmediate16(I_Loop_Register, m - (m % DEFAULT_MICROKERNEL_M)));
         backend.addBackwardsBranchFromCurrentPosition(iLoopStart, Instructions::LT);
 
         // handle i loop edge cases
-        if (m % 8 != 0) {
-            // we can use two vector registers if m % 8 > 4 (else use only 1 vector register)
-            // if two vector registers for A are used, then an predicated 8x3 microkernel is employed
-            // only certain instructions are predicated as only those are important for the validity:
-            //      - last load
-            //      - all stores
+        if (m % DEFAULT_MICROKERNEL_M != 0) {
+            generateMicroKernel(m % DEFAULT_MICROKERNEL_M, k, DEFAULT_MICROKERNEL_N, lda, ldb, ldc);
 
-            // if one vector register is used, try to employ an (if needed predicated) 4x7 microkernel
-            if (m % 8 > 4) {
-                generateMicroKernel(m % 8, k, 3, lda, ldb, ldc);
-                backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, k-2));
-
-                // prepare for next i loop. execute earlier to access new i value
-                // backend.addInstruction(Instructions::Arithmetic::addImmediate32(I_Loop_Register, 8));
-                // Rewind
-                // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
-                // Rewind B => B = B - 4*k
-                backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4*k));
-                // Rewind C => C += 8*4
-                backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, (m % 8) * 4));
-            } else {
-                generateMicroKernel(m % 8, k, 3, lda, ldb, ldc);
-
-                // Rewind
-                // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
-                // Rewind B => B = B - 4*k
-                backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4*k));
-                // Rewind C => C += 4*4
-                backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, (m % 8) * 4));
-            }
+            // prepare for next i loop. execute earlier to access new i value
+            // backend.addInstruction(Instructions::Arithmetic::addImmediate32(I_Loop_Register, 8));
+            // Rewind
+            // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
+            // Rewind B => B = B - 4*k
+            backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4 * k));
+            // Rewind C => C += 8*4
+            backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, (m % DEFAULT_MICROKERNEL_M) * 4));
         }
 
         // gemm loop i end (next j)
         // Rewind A -> already rewinded by i so need to reset
         backend.addInstruction(Instructions::DataProcessing::movRegister32(A_Pointer, A_Base_Pointer));
         // Rewind B -> rewinded by i to start. add 3*len
-        backend.addInstruction(Instructions::Arithmetic::addImmediate32(B_Pointer, ldb * 3 * 4));
+        backend.addInstruction(Instructions::Arithmetic::addImmediate32(B_Pointer, ldb * DEFAULT_MICROKERNEL_N * 4));
         // Rewind C -> still have to go two lines -> 2ldc
-        backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, 2 * ldc * 4));
-        /*if (m % 4 != 0) {
-            backend.addInstruction(Instructions::Vector::vmovGPxScalar(true, Instructions::S12, Instructions::R10));
-            backend.addInstruction(Instructions::Base::udf(1));
-        }*/
-        backend.addInstruction(Instructions::Arithmetic::addImmediate32(J_Loop_Register, 3));
-        backend.addInstruction(Instructions::Base::cmpImmediate16(J_Loop_Register, n - (n % 3)));
+        backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, (DEFAULT_MICROKERNEL_N - 1) * ldc * 4));
+
+        backend.addInstruction(Instructions::Arithmetic::addImmediate32(J_Loop_Register, DEFAULT_MICROKERNEL_N));
+        backend.addInstruction(Instructions::Base::cmpImmediate16(J_Loop_Register, n - (n % DEFAULT_MICROKERNEL_N)));
         backend.addBackwardsBranchFromCurrentPosition(jLoopStart, Instructions::LT);
 
         // handle j loop edge cases
-        if (n % 3 == 2) { // 8x2 kernel
-            /*
-            * Loop i (m loop): Count from 0 to m
-            */
+        if (n % DEFAULT_MICROKERNEL_N != 0) {
             backend.addInstruction(Instructions::DataProcessing::movImmediate32(I_Loop_Register, 0));
             Instructions::Instruction16 * iLoopStartjTail = backend.addBranchTargetInstruction(Instructions::Base::nop32());
 
-            generateMicroKernel(8, k, 2, lda, ldb, ldc);
-
-            // prepare for next i loop. execute earlier to access new i value
-            backend.addInstruction(Instructions::Arithmetic::addImmediate32(I_Loop_Register, 8));
-
+            generateMicroKernel(DEFAULT_MICROKERNEL_M, k, n % DEFAULT_MICROKERNEL_N, lda, ldb, ldc);
+            
+            backend.addInstruction(Instructions::Arithmetic::addImmediate32(I_Loop_Register, DEFAULT_MICROKERNEL_M));
 
             // Rewind
             // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
             backend.addInstruction(Instructions::Arithmetic::addRegister32(A_Pointer, A_Base_Pointer, I_Loop_Register, Instructions::LSL, 2));
             // backend.addInstruction(Instructions::DataProcessing::movRegister32(A_Pointer, A_Base_Pointer));
             // Rewind B => B = B - 4*k
-            backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4*k));
+            backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4 * k));
             // Rewind C => C += 8*4
-            backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, 8*4));
+            backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, DEFAULT_MICROKERNEL_M * 4));
 
             // ensure that only full microkernels can be executed
-            backend.addInstruction(Instructions::Base::cmpImmediate16(I_Loop_Register, m - (m % 8)));
+            backend.addInstruction(Instructions::Base::cmpImmediate16(I_Loop_Register, m - (m % DEFAULT_MICROKERNEL_M)));
             backend.addBackwardsBranchFromCurrentPosition(iLoopStartjTail, Instructions::LT);
 
-            if (m % 8 != 0) {
-                generateMicroKernel(m % 8, k, 2, lda, ldb, ldc);
-            }
-        }
-        if (n % 3 == 1) {
-            backend.addInstruction(Instructions::DataProcessing::movImmediate32(I_Loop_Register, 0));
-            Instructions::Instruction16 * iLoopStartjTail = backend.addBranchTargetInstruction(Instructions::Base::nop32());
-            // load b[0] and write back
-            generateMicroKernel(8, k, 1, lda, ldb, ldc);
-
-            // prepare for next i loop. execute earlier to access new i value
-            backend.addInstruction(Instructions::Arithmetic::addImmediate32(I_Loop_Register, 8));
-
-            // Rewind
-            // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
-            backend.addInstruction(Instructions::Arithmetic::addRegister32(A_Pointer, A_Base_Pointer, I_Loop_Register, Instructions::LSL, 2));
-            // Rewind B => B = B - 4*k
-            backend.addInstruction(Instructions::Arithmetic::subImmediate32(B_Pointer, 4*k));
-            // Rewind C => C += 8*4
-            backend.addInstruction(Instructions::Arithmetic::addImmediate32(C_Pointer, 8*4));
-
-            // ensure that only full microkernels can be executed
-            backend.addInstruction(Instructions::Base::cmpImmediate16(I_Loop_Register, m - (m % 8)));
-            backend.addBackwardsBranchFromCurrentPosition(iLoopStartjTail, Instructions::LT);
-
-            if (m % 8 != 0) {
-                generateMicroKernel(m % 8, k, 1, lda, ldb, ldc);
+            if (m % DEFAULT_MICROKERNEL_M != 0) {
+                generateMicroKernel(m % DEFAULT_MICROKERNEL_M, k, n % DEFAULT_MICROKERNEL_N, lda, ldb, ldc);
             }
         }
     }
