@@ -93,6 +93,7 @@ class JIT::Generators::Gemm {
 
         void generateMicroKernel(uint32_t m, uint32_t k, uint32_t n, uint32_t lda, uint32_t ldb, uint32_t ldc, MicroKernelConfiguration configuration, bool rewind = false);
         void addImmediate(JIT::Instructions::Register reg, uint32_t immediate, JIT::Instructions::Register tempReg = Instructions::PC);
+        void emitLoadB(Instructions::Register targetReg, MicroKernelConfiguration & configuration, uint32_t leftShiftAmount, uint32_t offset);
 
     public:
         using Func = void (*) (float const *, float const *, float *);
