@@ -73,6 +73,15 @@ Instruction16 Arithmetic::addRegister16(Register Rdn, Register Rm) {
 
 // amount = imm3:imm2
 Instruction32 Arithmetic::addRegister32(Register Rd, Register Rn, Register Rm, Shift shift, uint8_t amount, bool setFlags) {
+    if (shift == ROR && amount > 0) {
+        Base::printValidationError("addRegister32: RRX/ROR not allowed with extra shift - returning nop");
+        return Base::nop32();
+    }
+    if (amount > 0b11111) {
+        Base::printValidationError("addRegister32: shift amount too large (max. 31) - returning nop");
+        return Base::nop32();
+    }
+
     Instruction32 instr = 0xeb00'0000;
 
     instr |= Rm;
@@ -135,6 +144,44 @@ Instruction32 Arithmetic::subImmediate32(Register Rd, Register Rn, uint16_t imm1
 
 Instruction32 Arithmetic::subImmediate32(Register Rdn, uint16_t imm12) {
     return subImmediate32(Rdn, Rdn, imm12);
+}
+
+Instruction16 Arithmetic::subRegister16(Register Rd, Register Rn, Register Rm) {
+    if (!Base::assertLowRegister(Rd, Rn, Rm)) {
+        Base::printValidationError("subRegister16: only low registers allowed - returning nop");
+        return Base::nop16();
+    }
+    Instruction16 instr = 0x1a00;
+    instr |= Rd;
+    instr |= Rn << 3;
+    instr |= Rm << 6;
+    return instr;
+}
+
+Instruction32 Arithmetic::subRegister32(Register Rd, Register Rn, Register Rm, Shift shift, uint8_t amount, bool setFlags) {
+    if (shift == ROR && amount > 0) {
+        Base::printValidationError("subRegister32: RRX/ROR not allowed with extra shift - returning nop");
+        return Base::nop32();
+    }
+    if (amount > 0b11111) {
+        Base::printValidationError("subRegister32: shift amount too large (max. 31) - returning nop");
+        return Base::nop32();
+    }
+
+    Instruction32 instr = 0xeba0'0000;
+    instr |= Rm;
+    instr |= Rd << 8;
+    instr |= Rn << 16;
+    instr |= shift << 4;
+    amount &= 0x1f; // imm5
+    instr |= (0x3 & amount) << 6; // set imm2
+    instr |= (amount >> 2) << 12;
+    instr |= setFlags << 20;
+    return instr;
+}
+
+Instruction32 Arithmetic::subRegister32(Register Rd, Register Rm, Shift shift, uint8_t amount, bool setFlags) {
+    return subRegister32(Rd, Rd, Rm, shift, amount, setFlags);
 }
 
 
