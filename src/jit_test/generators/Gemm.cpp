@@ -112,6 +112,29 @@ void JIT::Generators::Gemm::emitLoadB(JIT::Instructions::Register targetReg, Mic
     }
 }
 
+// void JIT::Generators::Gemm::emitAddA() {
+
+// }
+
+void JIT::Generators::Gemm::emitLoadStoreC(MicroKernelConfiguration configuration, Instructions::VectorRegister targetReg, uint32_t ldc, bool store) {
+    bool secondRow = targetReg == C20_Register || targetReg == C21_Register;
+    if ((configuration.registerStrategy & USE_CROW2_REGISTER && secondRow) || (configuration.registerStrategy & USE_CROW1_REGISTER && !secondRow)) {
+        if (store) backend.addInstruction(Instructions::Vector::vstrw(targetReg,secondRow ? configuration.CROW2_REGISTER : configuration.CROW1_REGISTER));
+        else backend.addInstruction(Instructions::Vector::vldrw(targetReg,secondRow ? configuration.CROW2_REGISTER : configuration.CROW1_REGISTER));
+    } else {
+        uint32_t offset = secondRow ? 2 * DT_SIZE * ldc : DT_SIZE * ldc;
+        if (targetReg == C11_Register || targetReg == C21_Register) offset += 16;
+        if (offset <= VLDR_TRESHOLD) {
+            if (store) backend.addInstruction(Instructions::Vector::vstrw(targetReg, C_Pointer, offset));
+            else backend.addInstruction(Instructions::Vector::vldrw(targetReg, C_Pointer, offset));
+        } else {
+            // TODO: slow fallback (will never happen anyways as CROW has priority)
+            Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
+            backend.addInstruction(Instructions::Base::nop32());
+        }
+    }
+}
+
 void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t n, uint32_t lda, uint32_t ldb, uint32_t ldc, MicroKernelConfiguration configuration, bool rewind) {
     // calculate needed vector registers
     uint32_t neededVectorRegisters = m % VECTOR_ELEMENTS != 0 ? ((m / VECTOR_ELEMENTS) + 1) * n + ((m / VECTOR_ELEMENTS) + 1) : (m / VECTOR_ELEMENTS) * n + (m / VECTOR_ELEMENTS);
@@ -131,13 +154,11 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         return;
     }
 
-    if (m <= 4) {
+    if (m <= 8) {
         /* Load B */
         if (n >= 2) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb]
         if (n == 3) emitLoadB(B2_Register, configuration, 3, 2 * DT_SIZE * ldb); // load b[2ldb]
         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
-
-        uint32_t vldrImmA = 0;
 
         if (configuration.registerStrategy & USE_CROW1_REGISTER) {
             uint32_t cRowAdd = DT_SIZE * ldc;
@@ -169,36 +190,19 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         // handle edge case for really huge k
         if ((k-2) / maxSkippedAdds > 65535) backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, ((ldb-2) / maxSkippedAdds) >> 16));
         backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, (ldb-2) / maxSkippedAdds));
+    }
 
+    if (m <= 4) {
+        uint32_t vldrImmA = 0;
         backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
         backend.addInstruction(Instructions::Vector::vldrw(C00_Register, C_Pointer));
         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
         if (n >= 2) {
-            if (configuration.registerStrategy & USE_CROW1_REGISTER) {
-                backend.addInstruction(Instructions::Vector::vldrw(C10_Register, configuration.CROW1_REGISTER));
-            } else {
-                if (useImmediateCRow1) {
-                    backend.addInstruction(Instructions::Vector::vldrw(C10_Register, C_Pointer, DT_SIZE * ldc));
-                } else {
-                    // TODO: slow fallback (will never happen anyways as CROW has priority)
-                    Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
-                    backend.addInstruction(Instructions::Base::nop32());
-                }
-            }
+            emitLoadStoreC(configuration, C10_Register, ldc, false);
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
         }
         if (n >= 3) {
-            if (configuration.registerStrategy & USE_CROW2_REGISTER) {
-                backend.addInstruction(Instructions::Vector::vldrw(C20_Register, configuration.CROW2_REGISTER));
-            } else {
-                if (useImmediateCRow2) {
-                    backend.addInstruction(Instructions::Vector::vldrw(C20_Register, C_Pointer, 2 * DT_SIZE * ldc));
-                } else {
-                    // TODO: slow fallback (will never happen anyways as CROW has priority)
-                    Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
-                    backend.addInstruction(Instructions::Base::nop32());
-                }
-            }
+            emitLoadStoreC(configuration, C20_Register, ldc, false);
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
         }
         // Load A[0]
@@ -208,7 +212,7 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
             vldrImmA = 0;
         } else if (aNeedsPreadd) {
             if (vldrImmA < LDR_TRESHOLD) {
-                backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, ldc * DT_SIZE));
+                backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda * DT_SIZE));
                 vldrImmA = 0;
             } else {
                 // TODO: slow fallback (will never happen anyways as A has priority)
@@ -220,7 +224,7 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
 
         backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, vldrImmA));
         vldrImmA = 0;
-        if (!aNeedsPreadd) backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, ldc * DT_SIZE));
+        if (!aNeedsPreadd) backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda * DT_SIZE));
 
         /* Load B */
         if (n >= 2) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb]
@@ -287,72 +291,14 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         }
         if (n >= 2) {
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-            if (configuration.registerStrategy & USE_CROW1_REGISTER) {
-                backend.addInstruction(Instructions::Vector::vstrw(C10_Register, configuration.CROW1_REGISTER));
-            } else {
-                if (useImmediateCRow1) {
-                    backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, DT_SIZE * ldc));
-                } else {
-                    // TODO: slow fallback (will never happen anyways as CROW has priority)
-                    Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
-                    backend.addInstruction(Instructions::Base::nop32());
-                }
-            }
+            emitLoadStoreC(configuration, C10_Register, ldc, true);
         }
         if (n >= 3) {
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-            if (configuration.registerStrategy & USE_CROW2_REGISTER) {
-                backend.addInstruction(Instructions::Vector::vstrw(C20_Register, configuration.CROW2_REGISTER));
-            } else {
-                if (useImmediateCRow2) {
-                    backend.addInstruction(Instructions::Vector::vstrw(C20_Register, C_Pointer, 2 * DT_SIZE * ldc));
-                } else {
-                    // TODO: slow fallback (will never happen anyways as CROW has priority)
-                    Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
-                    backend.addInstruction(Instructions::Base::nop32());
-                }
-            }
+            emitLoadStoreC(configuration, C20_Register, ldc, true);
         }
     } else if (m <= 8) {
-        /* Load B */
-        if (n >= 2) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb]
-        if (n == 3) emitLoadB(B2_Register, configuration, 3, 2 * DT_SIZE * ldb); // load b[2ldb]
-        // load b[0]. no danger of stepping over the immediate bounds
-        backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
-
         uint32_t vldrImmA = 0;
-
-        if (configuration.registerStrategy & USE_CROW1_REGISTER) {
-            uint32_t cRowAdd = DT_SIZE * ldc;
-            if (cRowAdd > LDR_TRESHOLD) {
-                if (cRowAdd > MOV_TRESHOLD) {
-                    backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, cRowAdd >> 16));
-                }
-                backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, cRowAdd));
-                backend.addInstruction(Instructions::Arithmetic::addRegister32(configuration.CROW1_REGISTER, C_Pointer, DLS_COUNT_REGISTER));
-            } else {
-                backend.addInstruction(Instructions::Arithmetic::addImmediate32(configuration.CROW1_REGISTER, C_Pointer, cRowAdd));
-            }
-        }
-        if (configuration.registerStrategy & USE_CROW2_REGISTER) {
-            uint32_t cRowAdd = 2 * DT_SIZE * ldc;
-            if (cRowAdd > LDR_TRESHOLD) {
-                if (cRowAdd > MOV_TRESHOLD) {
-                    backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, cRowAdd >> 16));
-                }
-                backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, cRowAdd));
-                backend.addInstruction(Instructions::Arithmetic::addRegister32(configuration.CROW2_REGISTER, C_Pointer, DLS_COUNT_REGISTER));
-            } else {
-                backend.addInstruction(Instructions::Arithmetic::addImmediate32(configuration.CROW2_REGISTER, C_Pointer, cRowAdd));
-            }
-        }
-
-        // if the next vldrw can be used with an immediate, use the immediate instead of the add instruction
-        // to use this, we need to unroll the k loop
-        // handle edge case for really huge k
-        if ((k-2) / maxSkippedAdds > 65535) backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, ((k-2) / maxSkippedAdds) >> 16));
-        backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, (k-2) / maxSkippedAdds));
-
         backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
         backend.addInstruction(Instructions::Vector::vldrw(C00_Register, C_Pointer));
         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
@@ -360,56 +306,16 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         backend.addInstruction(Instructions::Vector::vldrw(C01_Register, C_Pointer, 16));
         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
         if (n >= 2) {
-            if (configuration.registerStrategy & USE_CROW1_REGISTER) {
-                backend.addInstruction(Instructions::Vector::vldrw(C10_Register, configuration.CROW1_REGISTER));
-            } else {
-                if (useImmediateCRow1) {
-                    backend.addInstruction(Instructions::Vector::vldrw(C10_Register, C_Pointer, DT_SIZE * ldc));
-                } else {
-                    // TODO: slow fallback (will never happen anyways as CROW has priority)
-                    Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
-                    backend.addInstruction(Instructions::Base::nop32());
-                }
-            }
+            emitLoadStoreC(configuration, C10_Register, ldc, false);
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
 
-            if (configuration.registerStrategy & USE_CROW1_REGISTER) {
-                backend.addInstruction(Instructions::Vector::vldrw(C11_Register, configuration.CROW1_REGISTER, 16));
-            } else {
-                if (useImmediateCRow1) {
-                    backend.addInstruction(Instructions::Vector::vldrw(C11_Register, C_Pointer, DT_SIZE * ldc + 16));
-                } else {
-                    // TODO: slow fallback (will never happen anyways as CROW has priority)
-                    Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
-                    backend.addInstruction(Instructions::Base::nop32());
-                }
-            }
+            emitLoadStoreC(configuration, C11_Register, ldc, false);
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
         }
         if (n >= 3) {
-            if (configuration.registerStrategy & USE_CROW2_REGISTER) {
-                backend.addInstruction(Instructions::Vector::vldrw(C20_Register, configuration.CROW2_REGISTER));
-            } else {
-                if (useImmediateCRow2) {
-                    backend.addInstruction(Instructions::Vector::vldrw(C20_Register, C_Pointer, 2 * DT_SIZE * ldc));
-                } else {
-                    // TODO: slow fallback (will never happen anyways as CROW has priority)
-                    Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
-                    backend.addInstruction(Instructions::Base::nop32());
-                }
-            }
+            emitLoadStoreC(configuration, C20_Register, ldc, false);
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-            if (configuration.registerStrategy & USE_CROW2_REGISTER) {
-                backend.addInstruction(Instructions::Vector::vldrw(C21_Register, configuration.CROW2_REGISTER, 16));
-            } else {
-                if (useImmediateCRow2) {
-                    backend.addInstruction(Instructions::Vector::vldrw(C21_Register, C_Pointer, 2 * DT_SIZE * ldc + 16));
-                } else {
-                    // TODO: slow fallback (will never happen anyways as CROW has priority)
-                    Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
-                    backend.addInstruction(Instructions::Base::nop32());
-                }
-            }
+            emitLoadStoreC(configuration, C21_Register, ldc, false);
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C21_Register, A1_Register, B2_Register));
         }
 
@@ -507,17 +413,7 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         backend.addInstruction(Instructions::Vector::vstrw(C00_Register, C_Pointer));
         if (n >= 2) {
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-            if (configuration.registerStrategy & USE_CROW1_REGISTER) {
-                backend.addInstruction(Instructions::Vector::vstrw(C10_Register, configuration.CROW1_REGISTER));
-            } else {
-                if (useImmediateCRow1) {
-                    backend.addInstruction(Instructions::Vector::vstrw(C10_Register, C_Pointer, DT_SIZE * ldc));
-                } else {
-                    // TODO: slow fallback (will never happen anyways as CROW has priority)
-                    Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
-                    backend.addInstruction(Instructions::Base::nop32());
-                }
-            }
+            emitLoadStoreC(configuration, C10_Register, ldc, true);
         }
         if (predicated && n >= 2) { // predicate the next rows. only needed if the rows are used (i.e. for 8x2, 8x3 microkernel)
             backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, DLS_COUNT_REGISTER));
@@ -525,43 +421,13 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         }
         if (n >= 2) {
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
-            if (configuration.registerStrategy & USE_CROW1_REGISTER) {
-                backend.addInstruction(Instructions::Vector::vstrw(C11_Register, configuration.CROW1_REGISTER, 16));
-            } else {
-                if (useImmediateCRow1) {
-                    backend.addInstruction(Instructions::Vector::vstrw(C11_Register, C_Pointer, DT_SIZE * ldc + 16));
-                } else {
-                    // TODO: slow fallback (will never happen anyways as CROW has priority)
-                    Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
-                    backend.addInstruction(Instructions::Base::nop32());
-                }
-            }
+            emitLoadStoreC(configuration, C11_Register, ldc, true);
         }
         if (n == 3) {
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C21_Register, A1_Register, B2_Register));
-            if (configuration.registerStrategy & USE_CROW2_REGISTER) {
-                backend.addInstruction(Instructions::Vector::vstrw(C21_Register, configuration.CROW2_REGISTER, 16));
-            } else {
-                if (useImmediateCRow2) {
-                    backend.addInstruction(Instructions::Vector::vstrw(C21_Register, C_Pointer, 2 * DT_SIZE * ldc + 16));
-                } else {
-                    // TODO: slow fallback (will never happen anyways as CROW has priority)
-                    Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
-                    backend.addInstruction(Instructions::Base::nop32());
-                }
-            }
+            emitLoadStoreC(configuration, C21_Register, ldc, true);
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-            if (configuration.registerStrategy & USE_CROW2_REGISTER) {
-                backend.addInstruction(Instructions::Vector::vstrw(C20_Register, configuration.CROW2_REGISTER));
-            } else {
-                if (useImmediateCRow2) {
-                    backend.addInstruction(Instructions::Vector::vstrw(C20_Register, C_Pointer, 2 * DT_SIZE * ldc));
-                } else {
-                    // TODO: slow fallback (will never happen anyways as CROW has priority)
-                    Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
-                    backend.addInstruction(Instructions::Base::nop32());
-                }
-            }
+            emitLoadStoreC(configuration, C20_Register, ldc, true);
         }
     } else {
         // initialize accumulators and calculate first iteration of k
