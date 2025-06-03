@@ -282,29 +282,31 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
             emitLoadStoreC(configuration, C20_Register, ldc, true);
         }
     } else if (m <= 8) {
-        uint32_t vldrImmA = 0;
         backend.addInstruction(Instructions::Vector::vldrw(C00_Register, C_Pointer));
         backend.addInstruction(Instructions::Vector::vldrw(C01_Register, C_Pointer, 16));
         emitLoadStoreC(configuration, C10_Register, ldc, false);
         emitLoadStoreC(configuration, C11_Register, ldc, false);
         emitLoadStoreC(configuration, C20_Register, ldc, false);
         emitLoadStoreC(configuration, C21_Register, ldc, false);
-        vldrImmA = 0;
+
         Instructions::Instruction16 * kLoopStart;
         if (k > 3) backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
         if (k >= 3) {
             kLoopStart = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, DT_SIZE * ldb));
-            backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, vldrImmA));
-            backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
-            backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
-            if (n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
             if (n == 3) emitLoadB(B2_Register, configuration, 3, 2 * DT_SIZE * ldb); // load b[2ldb]
-            if (n == 3) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
+
+            backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, 0));
+            backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
+
+            backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
+            if (n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
+            if (n == 3) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
             if (n == 3) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C21_Register, A1_Register, B2_Register));
-            backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda * DT_SIZE));
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
+            
+            backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda * DT_SIZE));
         }
         if (k > 3) backend.addLowOverheadBranchFromCurrentPosition(kLoopStart);
         
