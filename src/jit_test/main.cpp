@@ -436,7 +436,7 @@ void constSizeTest(uint32_t m, uint32_t n, uint32_t k) {
     for (uint32_t i = 0; i < repeats; i++) {
         time = testShape(m, n, k, iterations, gemmGen);
         gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
-        sprintf(PRINTF_OUT_STRING, "BadLoopPeeling;%d;%d;%d;TillJIT;%f;%d;%d;1\r\n", m, k, n, gflops, time, iterations);
+        sprintf(PRINTF_OUT_STRING, "NoLoopPeeling;%d;%d;%d;TillJIT;%f;%d;%d;1\r\n", m, k, n, gflops, time, iterations);
         SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
     }
 }
