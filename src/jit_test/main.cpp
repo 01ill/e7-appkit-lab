@@ -126,8 +126,8 @@ static float bigC[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".b
 static float bigCRef[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
 #endif
 
-JIT::Instructions::Instruction16 globalBuffer[3072] __attribute__((section(".itcm_jit"), aligned(4)));
-// JIT::Instructions::Instruction16 globalBuffer[3072] __attribute__((aligned(4)));
+// JIT::Instructions::Instruction16 globalBuffer[3072] __attribute__((section(".itcm_jit"), aligned(4)));
+JIT::Instructions::Instruction16 globalBuffer[3072] __attribute__((aligned(4)));
 
 void initMatrices(float * a, float * b, float * c, float * cref, const uint32_t m, const uint32_t n, const uint32_t k, bool zeroC = false) {
     for (uint32_t i = 0; i < m*k; i++) a[i] = i;
@@ -436,7 +436,7 @@ void constSizeTest(uint32_t m, uint32_t n, uint32_t k) {
     for (uint32_t i = 0; i < repeats; i++) {
         time = testShape(m, n, k, iterations, gemmGen);
         gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
-        sprintf(PRINTF_OUT_STRING, "NoAlign;%d;%d;%d;TillJIT;%f;%d;%d;1\r\n", m, k, n, gflops, time, iterations);
+        sprintf(PRINTF_OUT_STRING, "NoAlign+NoITCM;%d;%d;%d;TillJIT;%f;%d;%d;1\r\n", m, k, n, gflops, time, iterations);
         SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
     }
 }
