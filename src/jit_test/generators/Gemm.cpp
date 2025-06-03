@@ -336,7 +336,7 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
      * - save base pointers
      * - initialize j counter
      */
-    //backend.addInstruction(Instructions::Base::nop16());
+    backend.addInstruction(Instructions::Base::nop16());
     backend.addInstruction(JIT::Instructions::DataProcessing::push32(Instructions::R4, Instructions::R5, Instructions::R6, Instructions::R7, Instructions::R8, Instructions::R9, Instructions::R10, Instructions::R11, Instructions::R12, Instructions::LR));
     backend.addInstruction(JIT::Instructions::DataProcessing::vpush(Instructions::Q4, 4));
 
