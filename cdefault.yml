@@ -39,6 +39,7 @@ default:
         - -Wall
         - -Wextra
         - -Wpedantic
+        - -Ofast
         #- -Weverything
       C:
         - -std=c11
