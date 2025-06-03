@@ -59,7 +59,7 @@ constexpr uint32_t MOV_TRESHOLD = 65535;
 constexpr uint32_t K_MAX_UNROLL = 5;
 /* Use 8x3 microkernel by default */
 constexpr uint32_t DEFAULT_MICROKERNEL_M = 4;
-constexpr uint32_t DEFAULT_MICROKERNEL_N = 4;
+constexpr uint32_t DEFAULT_MICROKERNEL_N = 3;
 
 constexpr uint32_t VECTOR_SIZE = 16; // == 128 Bit
 constexpr uint32_t VECTOR_COUNT = 8;
