@@ -160,6 +160,7 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
     maxSkippedAdds = maxSkippedAdds > K_MAX_UNROLL ? K_MAX_UNROLL : maxSkippedAdds; // limit k unrolling
     maxSkippedAdds = maxSkippedAdds > (k-2) ? (k-2) : maxSkippedAdds; // limit unrolling if k is small
     maxSkippedAdds = maxSkippedAdds < 1 ? 1 : maxSkippedAdds; // at least one iteration
+    maxSkippedAdds = 1;
 
     if (neededVectorRegisters > VECTOR_COUNT) {
         Instructions::Base::printValidationError("generateMicroKernel: dimensions too high - cant fit in vector registers");

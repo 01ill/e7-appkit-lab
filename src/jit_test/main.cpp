@@ -126,8 +126,8 @@ static float bigC[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".b
 static float bigCRef[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
 #endif
 
-// JIT::Instructions::Instruction16 globalBuffer[3072] __attribute__((section(".itcm_jit"), aligned(4)));
-JIT::Instructions::Instruction16 globalBuffer[3072] __attribute__((aligned(4)));
+JIT::Instructions::Instruction16 globalBuffer[3072] __attribute__((section(".itcm_jit"), aligned(4)));
+// JIT::Instructions::Instruction16 globalBuffer[3072] __attribute__((aligned(4)));
 
 void initMatrices(float * a, float * b, float * c, float * cref, const uint32_t m, const uint32_t n, const uint32_t k, bool zeroC = false) {
     for (uint32_t i = 0; i < m*k; i++) a[i] = i;
