@@ -30,6 +30,12 @@ project:
   define:
     - USE_CMSIS_DSP
     - PRINT_ENCODING_ERRORS
+    # - ARM_MATH_LOOPUNROLL
+    # - ARM_MATH_NEON
+    # - ARM_MATH_HELIUM
+    # - ARM_MATH_HELIUM_EXPERIMENTAL
+    # - ARM_MATH_AUTOVECTORIZE
+    - ARM_MATH_ROUNDING
 
   layers:
     - layer: ../../libs/alif/board.clayer.yml
