@@ -21,7 +21,7 @@ class JIT::Backend {
         void addHeliumInstruction(Instructions::Instruction32 instruction);
         Instructions::Instruction16* addBranchTargetInstruction(Instructions::Instruction16 branchInstruction);
         Instructions::Instruction16* addBranchTargetInstruction(Instructions::Instruction32 branchInstruction);
-        Instructions::Instruction16* addBranchPlaceholder(bool longBranch = false);
+        Instructions::Instruction16* addBranchPlaceholder(bool shortBranch = false);
         void addLowOverheadBranchFromCurrentPosition(Instructions::Instruction16 * loopStart, bool letp = false);
         void addBackwardsBranchFromCurrentPosition(Instructions::Instruction16 * branchTarget, Instructions::Condition branchCondition);
         void setForwardsBranch(Instructions::Instruction16 * branchInstruction, Instructions::Instruction16 * branchTarget, Instructions::Condition branchCondition);

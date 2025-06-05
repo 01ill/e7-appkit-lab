@@ -203,3 +203,18 @@ Instruction32 Arithmetic::mul32(Register Rd, Register Rn, Register Rm) {
     instr |= Rn << 16;
     return instr;
 }
+
+Instruction32 Arithmetic::andImmediate32(Register Rd, Register Rn, uint32_t constant, bool setFlags) {
+    if (!Base::canEncodeImmediateConstant(constant)) {
+        Base::printValidationError("andImmediate32: constant can't be encoded - returning nop");
+        return Base::nop32();
+    }
+    Instruction32 instr = 0xf000'0000;
+
+    instr |= Rd << 8;
+    instr |= Rn << 16;
+    instr |= setFlags << 20;
+
+    return Base::encodeImmediateConstant(instr, constant);
+
+}

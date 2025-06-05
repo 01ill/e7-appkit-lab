@@ -16,21 +16,15 @@ using namespace JIT;
 TEST_CASE("Helium instructions are correctly aligned", "[BACKEND]") {
     Backend backend;
     Instructions::Instruction16 * instructions = backend.getInstructions();
-    REQUIRE(reinterpret_cast<uintptr_t>(instructions) % 2 == 0);
+    if (reinterpret_cast<uintptr_t>(instructions) % 4 == 0) {
+        backend.addInstruction(Instructions::Base::nop16());
+        REQUIRE(reinterpret_cast<uintptr_t>(&instructions[backend.getInstructionCount()]) % 2 == 0);
+    }
+    REQUIRE(reinterpret_cast<uintptr_t>(&instructions[backend.getInstructionCount()]) % 4 != 0);
     backend.addHeliumInstruction(Instructions::Vector::vldrw(JIT::Instructions::Q0, JIT::Instructions::R4, 0, 0, 0));
+    REQUIRE(reinterpret_cast<uintptr_t>(&instructions[backend.getInstructionCount()]) % 4 == 0);
     Instructions::Instruction16 * heliumStart = &instructions[backend.getInstructionCount() - 2];
-    // REQUIRE(reinterpret_cast<uintptr_t>(heliumStart) % 4 == 0);
-    backend.addInstruction(Instructions::Base::nop16());
-    heliumStart = &instructions[backend.getInstructionCount() - 2];
     REQUIRE(reinterpret_cast<uintptr_t>(heliumStart) % 4 == 0);
-
-    // REQUIRE(reinterpret_cast<uintptr_t>(heliumStart) % 4 == 0);
-
-    backend.addInstruction(Instructions::Base::nop16());
-    backend.addInstruction(Instructions::Base::nop16());
-    backend.addHeliumInstruction(Instructions::Vector::vldrw(JIT::Instructions::Q0, JIT::Instructions::R4, 0, 0, 0));
-    // REQUIRE(instructions[backend.getInstructionCount() - 3] == Instructions::Base::nop());
-    // heliumStart = reinterpret_cast<Instructions::Instruction16*>(reinterpret_cast<uintptr_t>(heliumStart) & 0xf); // only keep lowest 4 bits
 }
 /*
 TEST_CASE("Branching Operations", "[BRANCH]") {

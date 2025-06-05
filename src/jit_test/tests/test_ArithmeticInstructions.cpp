@@ -73,3 +73,9 @@ TEST_CASE("MUL encodes correctly", "[MUL]") {
         REQUIRE(Arithmetic::mul32(R10, R11, R12) == 0xfb0b'fa0c);
     }
 }
+
+TEST_CASE("AND Immediate encodes correctly", "[AND]") {
+    SECTION("Test 1") {
+        REQUIRE(Arithmetic::andImmediate32(R9, R10, 128) == 0xf00a'0980);
+    }
+}

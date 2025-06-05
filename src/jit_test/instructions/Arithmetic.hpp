@@ -231,6 +231,8 @@ class JIT::Instructions::Arithmetic {
          */
         static Instruction32 mul32(Register Rd, Register Rn, Register Rm);
 
+        static Instruction32 andImmediate32(Register Rd, Register Rn, uint32_t constant, bool setFlags = false);
+
 };
 
 #endif // ARITHMETIC_HPP

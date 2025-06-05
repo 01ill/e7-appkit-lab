@@ -279,6 +279,15 @@ class JIT::Instructions::Base {
          * @return false If the instruction can't encode the 32bit immediate
          */
         static bool canEncodeImmediateConstant(uint32_t const);
+        /**
+         * @brief Encodes the immediate constant into an instruction. Only the immediate is encoded. Registers etc. are dependent on the instruction
+         * and have to be encoded earlier or later.
+         * Tested with CMP and AND
+         * @param instr Existing instruction
+         * @param constant Constant to encode
+         * @return Instruction32 
+         */
+        static Instruction32 encodeImmediateConstant(Instruction32 instr, uint32_t constant);
 };
 
 #endif // BASE_HPP
