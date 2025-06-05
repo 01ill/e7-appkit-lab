@@ -15,9 +15,9 @@
 #include "timing.hpp"
 #include "arm_math.h"
 
-constexpr bool testReference = true;
-constexpr bool testIntrinsics = true;
-constexpr bool testArm = true;
+constexpr bool testReference = false;
+constexpr bool testIntrinsics = false;
+constexpr bool testArm = false;
 constexpr bool testJitter = true;
 
 void gemm_reference_row_major(const float * __restrict__ a, const float * __restrict__ b, float * __restrict__ c, const uint32_t n, const uint32_t k, const uint32_t m, const uint32_t lda, const uint32_t ldb, const uint32_t ldc) {
@@ -102,6 +102,10 @@ void gemm_intrinsics_8x3(const float * __restrict__ a, const float * __restrict_
     }
 }
 
+extern "C" {
+    void gemm_20x24_jit(float const * __restrict__ a, float const * __restrict__ b, float * __restrict__ c);
+    void gemm_20x24_tuned(float const * __restrict__ a, float const * __restrict__ b, float * __restrict__ c);
+}
 
 static char PRINTF_OUT_STRING[256] __attribute__((used, section(".bss.array_region_sram0")));
 /*constexpr uint32_t peakCount = 50000;
@@ -109,11 +113,11 @@ static float a[peakCount];// __attribute__((used, section(".bss.array_region_sra
 static float b[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 static float c[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 */
-#define CONST_SIZE
+// #define CONST_SIZE
 #ifdef CONST_SIZE
-static const uint32_t M = 24;
-static const uint32_t K = 24;
-static const uint32_t N = 24;
+static const uint32_t M = 25;
+static const uint32_t K = 25;
+static const uint32_t N = 25;
 static float bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
@@ -171,6 +175,7 @@ int32_t testShape(uint32_t m, uint32_t n, uint32_t k, uint32_t iterations, JIT::
     }
     auto end = RTC_Clock::now();
     auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    if (compareResult != -1) SEGGER_RTT_printf(0, "Fail at %d;", compareResult);
     return compareResult != -1 ? -time : time; // return negative value if test not succesful
 }
 
@@ -230,7 +235,7 @@ void testSquareShapes() {
     JIT::Generators::Gemm gemmGen;
     SEGGER_RTT_printf(0, "--- START TEST SQUARE SHAPES ---\n");
     SEGGER_RTT_printf(0, "Test;M;K;N;Type;GFLOPS;Time;Iterations;Correct\n");
-    for (uint32_t i = 2; i < 240; i++) {
+    for (uint32_t i = 17; i < 240; i++) {
         // run approximately one second assuming peak performance
         // 1.6gflops => 2n^3 flop per iteration
         // 2n^3 * x = 1.6 * 10^9
@@ -251,7 +256,7 @@ void testSquareShapes() {
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
             bool correctResult = gflops > 0;
             if (!correctResult) gflops = -gflops;
-            sprintf(PRINTF_OUT_STRING, "Square;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
+            sprintf(PRINTF_OUT_STRING, "Square;%d;%d;%d;TillJIT-04.06.;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
             SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
         }
         
@@ -301,7 +306,7 @@ void testGrowingK() {
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
             bool correctResult = gflops > 0;
             if (!correctResult) gflops = -gflops;
-            sprintf(PRINTF_OUT_STRING, "GrowK;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
+            sprintf(PRINTF_OUT_STRING, "GrowK;%d;%d;%d;TillJIT-04.06.;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
             SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
         }
 
@@ -351,7 +356,7 @@ void testGrowingM() {
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
             bool correctResult = gflops > 0;
             if (!correctResult) gflops = -gflops;
-            sprintf(PRINTF_OUT_STRING, "GrowM;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
+            sprintf(PRINTF_OUT_STRING, "GrowM;%d;%d;%d;TillJIT-04.06.;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
             SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
         }
 
@@ -401,7 +406,7 @@ void testGrowingN() {
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
             bool correctResult = gflops > 0;
             if (!correctResult) gflops = -gflops;
-            sprintf(PRINTF_OUT_STRING, "GrowN;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
+            sprintf(PRINTF_OUT_STRING, "GrowN;%d;%d;%d;TillJIT-04.06.;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
             SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
         }
 
@@ -428,7 +433,7 @@ void testGrowingN() {
 void constSizeTest(uint32_t m, uint32_t n, uint32_t k) {
     initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
     JIT::Generators::Gemm gemmGen;
-    uint32_t repeats = 5;
+    uint32_t repeats = 1;
     uint32_t flops = 2 * m * k * n;
     uint32_t iterations = (1.6 * pow(10, 9)) / flops;
     int32_t time;
@@ -436,7 +441,7 @@ void constSizeTest(uint32_t m, uint32_t n, uint32_t k) {
     for (uint32_t i = 0; i < repeats; i++) {
         time = testShape(m, n, k, iterations, gemmGen);
         gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
-        sprintf(PRINTF_OUT_STRING, "Baseline;%d;%d;%d;TillJIT;%f;%d;%d;1\r\n", m, k, n, gflops, time, iterations);
+        sprintf(PRINTF_OUT_STRING, "4x6 Tail;%d;%d;%d;TillJIT;%f;%d;%d;1\r\n", m, k, n, gflops, time, iterations);
         SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
     }
 }
@@ -457,10 +462,42 @@ __NO_RETURN int main() {
 
     constSizeTest(m, n, k);
 
-    time = testShapeArm(m, n, k, iterations);
-    gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
-    sprintf(PRINTF_OUT_STRING, "ARM-CMSIS-DSP %dx%dx%d (%d): %f, %f, %s\r\n", m, k, n, time, bigC[0], gflops, time < 0 ? "Error" : "Correct");
-    SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
+    // initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
+    // gemm_20x24_jit(bigA, bigB, bigC);
+    // gemm_reference_column_major(bigA, bigB, bigCRef, n, k, m, m, k, m);
+    // int32_t compareResult = compare(bigC, bigCRef, m*n);
+    // initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
+    // auto start = RTC_Clock::now();
+    // for (uint32_t j = 0; j < iterations; j++) {
+    //     gemm_20x24_jit(bigA, bigB, bigC);
+    // }
+    // auto end = RTC_Clock::now();
+    // time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    // gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
+    // sprintf(PRINTF_OUT_STRING, "ASM 20x24;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, compareResult);
+    // SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
+
+    // initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
+    // gemm_reference_column_major(bigA, bigB, bigCRef, n, k, m, m, k, m);
+    // gemm_20x24_tuned(bigA, bigB, bigC);
+    // compareResult = compare(bigC, bigCRef, m*n);
+    // // SEGGER_RTT_printf(0, "Result: %d", compareResult);
+    // initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
+    // start = RTC_Clock::now();
+    // for (uint32_t j = 0; j < iterations; j++) {
+    //     gemm_20x24_tuned(bigA, bigB, bigC);
+    // }
+    // end = RTC_Clock::now();
+    // time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    // gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
+    // sprintf(PRINTF_OUT_STRING, "ASM 20x24 Tuned;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, compareResult);
+    // SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
+
+
+    // time = testShapeArm(m, n, k, iterations);
+    // gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
+    // sprintf(PRINTF_OUT_STRING, "ARM-CMSIS-DSP %dx%dx%d (%d): %f, %f, %s\r\n", m, k, n, time, bigC[0], gflops, time < 0 ? "Error" : "Correct");
+    // SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 /*
     time = testShape(m, n, k, iterations, gemmGen);
     gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
