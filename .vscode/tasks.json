@@ -11,7 +11,9 @@
             "label": "build-jit-test",
             "type": "shell",
             "command": "cmake --build src/jit_test/tests/build --target jit_test",
-            "problemMatcher": ["$gcc"],
+            "problemMatcher": [
+                "$gcc"
+            ],
             "presentation": {
                 "echo": true,
                 "reveal": "always",
@@ -64,7 +66,7 @@
             ],
             "windows": {
                 "command": [
-                    "cbuild ${command:cmsis-csolution.getSolutionPath} --clean;",
+                    "cbuild ${command:cmsis-csolution.getSolutionPath} --clean;"
                 ]
             },
             "problemMatcher": []
@@ -102,7 +104,9 @@
         {
             "label": "Program with Security Toolkit",
             "type": "shell",
-            "options": {"cwd": "${config:alif.setools.root}"},
+            "options": {
+                "cwd": "${config:alif.setools.root}"
+            },
             "command": [
                 "./app-gen-toc -f alif-img.json;",
                 "./app-write-mram -p;",
@@ -115,7 +119,9 @@
         {
             "label": "Program with Security Toolkit (select COM port)",
             "type": "shell",
-            "options": {"cwd": "${config:alif.setools.root}"},
+            "options": {
+                "cwd": "${config:alif.setools.root}"
+            },
             "command": [
                 "./app-gen-toc -f alif-img.json;",
                 "./app-write-mram -p -d;",
@@ -128,7 +134,9 @@
         {
             "label": "Update TOC with Security Toolkit",
             "type": "shell",
-            "options": {"cwd": "${config:alif.setools.root}"},
+            "options": {
+                "cwd": "${config:alif.setools.root}"
+            },
             "command": [
                 "./app-gen-toc -f alif-img.json;",
                 "./app-write-mram -S;",
@@ -141,21 +149,78 @@
         {
             "label": "Install debug stubs with Security Toolkit",
             "type": "shell",
-            "options": {"cwd": "${config:alif.setools.root}"},
+            "options": {
+                "cwd": "${config:alif.setools.root}"
+            },
             "command": [
                 "./app-gen-toc -f ./build/config/app-cpu-stubs.json;",
-                "./app-write-mram;",
+                "./app-write-mram;"
             ],
             "problemMatcher": []
         },
         {
             "label": "Install debug stubs with Security Toolkit (select COM port)",
             "type": "shell",
-            "options": {"cwd": "${config:alif.setools.root}"},
+            "options": {
+                "cwd": "${config:alif.setools.root}"
+            },
             "command": [
                 "./app-gen-toc -f ./build/config/app-cpu-stubs.json;",
-                "./app-write-mram -d;",
+                "./app-write-mram -d;"
             ],
+            "problemMatcher": []
+        },
+        {
+            "label": "CMSIS Erase",
+            "type": "shell",
+            "command": "pyocd",
+            "args": [
+                "erase",
+                "--probe",
+                "cmsisdap:",
+                "--chip",
+                "--cbuild-run",
+                "${command:cmsis-csolution.getCbuildRunFile}"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "CMSIS Load",
+            "type": "shell",
+            "command": "pyocd",
+            "args": [
+                "load",
+                "--probe",
+                "cmsisdap:",
+                "--cbuild-run",
+                "${command:cmsis-csolution.getCbuildRunFile}"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "CMSIS Run",
+            "type": "shell",
+            "command": "pyocd",
+            "args": [
+                "gdbserver",
+                "--probe",
+                "cmsisdap:",
+                "--connect",
+                "attach",
+                "--persist",
+                "--reset-run",
+                "--cbuild-run",
+                "${command:cmsis-csolution.getCbuildRunFile}"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "CMSIS Load+Run",
+            "dependsOn": [
+                "CMSIS Load",
+                "CMSIS Run"
+            ],
+            "dependsOrder": "sequence",
             "problemMatcher": []
         }
     ]

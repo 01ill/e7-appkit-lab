@@ -3,7 +3,7 @@
         "*.h": "c",
     },
     "cmake.configureOnOpen": false,
-    "cortex-debug.variableUseNaturalFormat": true,
+    "cortex-debug.variableUseNaturalFormat": false,
     "cmsis-csolution.actions": [
         {
             "path": "alif.csolution.yml",
@@ -11,9 +11,17 @@
             "config": {
                 "debug": "Alif Ensemble Debug (Cortex-Debug)"
             }
+        },
+        {
+            "path": "e7_tests.csolution.yml",
+            "target": "HP",
+            "config": {
+                "debug": "Alif Ensemble Debug (Cortex-Debug)"
+            }
         }
     ],
     "clangd.arguments": [
-        "--compile-commands-dir=/Users/till/Documents/Studium/Module/2025_SoSe/Tests/a7-appkit-lab/out/gemm_tests/HE/debug-gcc"
+        "--compile-commands-dir=/Users/till/Documents/Studium/Module/2025_SoSe/Tests/e7-appkit-lab/out/jit_test/HP/debug-release-ac6"
     ],
+    "debug.hideSlowPreLaunchWarning": true,
 }

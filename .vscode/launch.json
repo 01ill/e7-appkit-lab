@@ -24,16 +24,17 @@
             "showDevDebugOutput": "parsed",
             "device": "${command:cmsis-csolution.getDeviceName}_${command:cmsis-csolution.getProcessorName}",
             "interface": "swd",
-            "serverArgs": ["-JLinkDevicesXmlPath", ".alif/JLinkDevices.xml"],
+            "serverArgs": [
+                "-JLinkDevicesXmlPath",
+                ".alif/JLinkDevices.xml"
+            ],
             "preLaunchCommands": [
                 "monitor speed 15000"
             ],
-            // Armclang has problems generating ELF which can be correctly read by Arm-GNU-GDB
-            // Because of this, a hex file is generated which is loaded on the device while debugging
             "overrideLaunchCommands": [
                 "monitor reset halt",
                 "load ${input:substituteHexFile}",
-                "monitor reset halt",
+                "monitor reset halt"
             ],
             "postLaunchCommands": [
                 "set $sp = __Vectors[0]",
@@ -49,11 +50,77 @@
                         "type": "console"
                     }
                 ]
+            }
+        },
+        {
+            "name": "M55_HP CMSIS_DAP@pyOCD (launch)",
+            "type": "gdbtarget",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/",
+            "program": "out/jit_test/HP/debug-release-ac6/jit_test.axf",
+            "gdb": "arm-none-eabi-gdb",
+            "preLaunchTask": "CMSIS Load",
+            "initCommands": [
+                "monitor reset halt",
+                "tbreak main"
+            ],
+            "customResetCommands": [
+                "monitor reset halt"
+            ],
+            "target": {
+                "server": "pyocd",
+                "serverParameters": [
+                    "--probe",
+                    "cmsisdap:",
+                    "--connect",
+                    "attach",
+                    "--persist"
+                ],
+                "port": "3333"
             },
+            "cmsis": {
+                "cbuildRunFile": "${command:cmsis-csolution.getCbuildRunFile}",
+                "updateConfiguration": "auto"
+            }
+        },
+        {
+            "name": "M55_HP CMSIS_DAP@pyOCD (attach)",
+            "type": "gdbtarget",
+            "request": "attach",
+            "cwd": "${workspaceFolder}/",
+            "program": "out/jit_test/HP/debug-release-ac6/jit_test.axf",
+            "gdb": "arm-none-eabi-gdb",
+            "initCommands": [
+                ""
+            ],
+            "customResetCommands": [
+                "monitor reset halt"
+            ],
+            "target": {
+                "port": "3333"
+            },
+            "cmsis": {
+                "updateConfiguration": "auto"
+            }
+        },
+        {
+            "name": "M55_HE CMSIS_DAP@pyOCD (attach)",
+            "type": "gdbtarget",
+            "request": "attach",
+            "cwd": "${workspaceFolder}/",
+            "program": "",
+            "gdb": "arm-none-eabi-gdb",
+            "initCommands": [
+                ""
+            ],
+            "target": {
+                "port": "3334"
+            },
+            "cmsis": {
+                "updateConfiguration": "auto"
+            }
         }
     ],
-    // Provide the hex file as input
-    // The Command Variable extension is needed for transforming the filename
     "inputs": [
         {
             "id": "substituteHexFile",
