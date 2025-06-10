@@ -35,9 +35,9 @@ static constexpr uint32_t arrayMaxSize = 24;
 static constexpr uint32_t M = 24;
 static constexpr uint32_t K = 24;
 static constexpr uint32_t N = 24;
-static float32_t bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
-static float32_t bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
-static float32_t bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
+static float32_t bigA[M*K] __attribute__((used, section(".bss.array_region_sram0")));
+static float32_t bigB[K*N] __attribute__((used, section(".bss.array_region_sram0")));
+static float32_t bigC[M*N] __attribute__((used, section(".bss.array_region_sram0")));
 static float32_t bigCRef[M*N] __attribute__((used, section(".bss.array_region_sram0")));
 static float32_t packedA[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
 static float32_t packedB[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
@@ -281,6 +281,28 @@ float32_t gemm_cm_dot_unroll8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intr
     return c[0];
 }
 
+float32_t inner_kernel_8x3(uint32_t m, uint32_t n, uint32_t k, const float32_t * __restrict__ a, const float32_t * __restrict__ b,  float32_t * __restrict__ c, uint32_t len) {
+    for (uint32_t j = 0; j < n; j += 3) {
+        for (uint32_t i = 0; i < m; i += 8) {
+            addDot8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(k, &a[i], &b[j * len], &c[j * len + i], len);
+        }
+    }
+    return c[0];
+}
+
+
+float32_t gemm_cm_dot_unroll8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics_blocked(const float32_t * __restrict__ a, const float32_t * __restrict__ b, float32_t * __restrict__ c, const uint32_t len) {
+    for (uint32_t p = 0; p < len; p += kc) {
+        uint32_t pb = std::min(len-p, kc);
+        for (uint32_t i = 0; i < len; i += mc) {
+            uint32_t ib = std::min(len - i, mc);
+            inner_kernel_8x3(ib, len, pb, &a[p*len + i], &b[p], &c[i], len);
+        }
+    }
+    return c[0];
+}
+
+
 float32_t frame_gemm_8x3(const float32_t * __restrict__ a, const float32_t * __restrict__ b, float32_t * __restrict__ c, const uint32_t len) {
     for (uint32_t j = 0; j < len; j+= 3) {
         for (uint32_t i = 0; i < len; i += 8) {
@@ -310,7 +332,7 @@ __NO_RETURN int main (void) {
     SEGGER_RTT_ConfigUpBuffer(0, nullptr, nullptr, 0, SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
     setupTests();
 
-    uint32_t iterations = 8000;
+    uint32_t iterations = 1000;
     uint32_t time;
     float32_t gflops;
     float32_t result = 0.0f;
@@ -518,6 +540,19 @@ __NO_RETURN int main (void) {
     gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
     sprintf(PRINTF_OUT_STRING, "GEMM CM 8x3 Intrinsics %dx%dx%d (%d): %f, %f, %f\r\n", M, K, N, time, bigC[0], result, gflops);
     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
+
+    initMatrices(bigA, bigB, bigC);
+    start = RTC_Clock::now();
+    for (uint32_t j = 0; j < iterations; j++) {
+        gemm_cm_dot_unroll8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics_blocked(bigA, bigB, bigC, arrayMaxSize);
+    }
+    end = RTC_Clock::now();
+
+    time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9));
+    sprintf(PRINTF_OUT_STRING, "GEMM CM 8x3 Blocked %dx%dx%d (%d): %f, %f, %f\r\n", M, K, N, time, bigC[0], result, gflops);
+    SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
+
 /*
 
     for (uint32_t j = 0; j < arrayMaxSize*arrayMaxSize; j++) {
@@ -634,6 +669,21 @@ __NO_RETURN int main (void) {
     } else {
         SEGGER_RTT_printf(0, "GEMM-ASM 8x3: Test nicht erfolgreich bei %d\n", compareResult);
     }
+        for (uint32_t j = 0; j < arrayMaxSize*arrayMaxSize; j++) {
+        bigA[j] = j;
+        bigB[j] = j;
+        bigC[j] = 0;
+        bigCRef[j] = 0;
+    }
+    gemm_cm_dot_unroll8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics_blocked(bigA, bigB, bigC, arrayMaxSize);
+    gemm_reference_column_major(bigA, bigB, bigCRef, arrayMaxSize);
+    compareResult = compare(bigC, bigCRef, arrayMaxSize*arrayMaxSize);
+    if (compareResult == -1) {
+        SEGGER_RTT_printf(0, "GEMM-ASM 8x3 BLOCKED: Test erfolgreich!\n");
+    } else {
+        SEGGER_RTT_printf(0, "GEMM-ASM 8x3 BLOCKED: Test nicht erfolgreich bei %d\n", compareResult);
+    }
+
 
     initMatrices(bigA, bigB, bigC);
     start = RTC_Clock::now();
