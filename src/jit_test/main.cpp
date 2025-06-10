@@ -115,9 +115,9 @@ static float c[peakCount];// __attribute__((used, section(".bss.array_region_sra
 */
 // #define CONST_SIZE
 #ifdef CONST_SIZE
-static const uint32_t M = 25;
-static const uint32_t K = 25;
-static const uint32_t N = 25;
+static const uint32_t M = 12;
+static const uint32_t K = 4;
+static const uint32_t N = 12;
 static float bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
@@ -235,7 +235,7 @@ void testSquareShapes() {
     JIT::Generators::Gemm gemmGen;
     SEGGER_RTT_printf(0, "--- START TEST SQUARE SHAPES ---\n");
     SEGGER_RTT_printf(0, "Test;M;K;N;Type;GFLOPS;Time;Iterations;Correct\n");
-    for (uint32_t i = 17; i < 240; i++) {
+    for (uint32_t i = 2; i < 240; i++) {
         // run approximately one second assuming peak performance
         // 1.6gflops => 2n^3 flop per iteration
         // 2n^3 * x = 1.6 * 10^9
@@ -433,7 +433,7 @@ void testGrowingN() {
 void constSizeTest(uint32_t m, uint32_t n, uint32_t k) {
     initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
     JIT::Generators::Gemm gemmGen;
-    uint32_t repeats = 1;
+    uint32_t repeats = 5;
     uint32_t flops = 2 * m * k * n;
     uint32_t iterations = (1.6 * pow(10, 9)) / flops;
     int32_t time;
@@ -441,7 +441,7 @@ void constSizeTest(uint32_t m, uint32_t n, uint32_t k) {
     for (uint32_t i = 0; i < repeats; i++) {
         time = testShape(m, n, k, iterations, gemmGen);
         gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
-        sprintf(PRINTF_OUT_STRING, "4x6 Tail;%d;%d;%d;TillJIT;%f;%d;%d;1\r\n", m, k, n, gflops, time, iterations);
+        sprintf(PRINTF_OUT_STRING, "4x6-Baseline;%d;%d;%d;TillJIT;%f;%d;%d;1\r\n", m, k, n, gflops, time, iterations);
         SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
     }
 }
