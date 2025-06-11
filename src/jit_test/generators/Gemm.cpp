@@ -53,9 +53,9 @@ constexpr uint32_t DT_SIZE = 4; // == 32 Bit (FP32)
 constexpr uint32_t VECTOR_ELEMENTS = VECTOR_SIZE / DT_SIZE;
 
 void JIT::Generators::Gemm::emitLoadB(JIT::Instructions::Register targetReg, MicroKernelConfiguration & configuration, uint32_t leftShiftAmount, uint32_t offset, bool secondHalf) {
-    if (configuration.registerStrategy & (secondHalf ? USE_K_LEN2_REGISTER : USE_K_LEN_REGISTER) && (targetReg == B1_Register || targetReg == B2_Register)) {
+    if ((configuration.registerStrategy & (secondHalf ? USE_K_LEN2_REGISTER : USE_K_LEN_REGISTER)) && (targetReg == B1_Register || targetReg == B2_Register)) {
         backend.addInstruction(Instructions::DataProcessing::ldrRegister32(targetReg, secondHalf ? configuration.K_LEN2_REGISTER : B_Pointer, configuration.K_LEN_REGISTER, leftShiftAmount));
-    } else {
+    } else if (targetReg == B1_Register || targetReg == B2_Register) {
         if (offset <= LDR_TRESHOLD) {
             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(targetReg, B_Pointer , offset));
         } else {
@@ -63,8 +63,7 @@ void JIT::Generators::Gemm::emitLoadB(JIT::Instructions::Register targetReg, Mic
             Instructions::Base::printValidationError("emitLoadB Immediate Fallback; inserting nop");
             backend.addInstruction(Instructions::Base::nop32());
         }
-    }
-    if (targetReg == B0_Register) {
+    } else { // if targetReg == B0_Register
         if (configuration.registerStrategy & USE_K_LEN_REGISTER && !secondHalf) {
             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(targetReg, B_Pointer, DT_SIZE, false, true));
         } else if (configuration.registerStrategy & USE_K_LEN2_REGISTER && secondHalf) {
@@ -141,7 +140,7 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
     maxSkippedAdds = maxSkippedAdds > K_MAX_UNROLL ? K_MAX_UNROLL : maxSkippedAdds; // limit k unrolling (priorize code size over (really small) performance gain)
     maxSkippedAdds = maxSkippedAdds > (k-2) ? (k-2) : maxSkippedAdds; // limit unrolling if k is small
     maxSkippedAdds = maxSkippedAdds < 1 ? 1 : maxSkippedAdds; // at least one iteration
-
+    bool needsDls = (k - 2) / maxSkippedAdds > 1;
     if (neededVectorRegisters > VECTOR_COUNT) {
         Instructions::Base::printValidationError("generateMicroKernel: dimensions too high - cant fit in vector registers");
         backend.addInstruction(Instructions::Base::nop32());
@@ -215,15 +214,17 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         // if the next vldrw can be used with an immediate, use the immediate instead of the add instruction
         // to use this, we need to unroll the k loop
         // handle edge case for really huge k
-        if ((k-2) / maxSkippedAdds > 65535) backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, ((k-2) / maxSkippedAdds) >> 16));
-        backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, (k-2) / maxSkippedAdds));
+        if (needsDls) {
+            if ((k-2) / maxSkippedAdds > 65535) backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, ((k-2) / maxSkippedAdds) >> 16));
+            backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, (k-2) / maxSkippedAdds));
+        }
 
         /* Load B */
         if (n >= 2) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb]
         if (n >= 3) emitLoadB(B2_Register, configuration, 3, 2 * DT_SIZE * ldb); // load b[2ldb]
 
         Instructions::Instruction16 * kLoopStart;
-        if (k > 3) backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
+        if (needsDls) backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
         if (k >= 3) {
             for (uint32_t i = 0; i < maxSkippedAdds; i++) {
                 if (i == 0) {
@@ -233,24 +234,20 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
                         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
                     }
                 } else {
-                    if (n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
                     backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
                 }
                 if (n >= 3) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
                 if (n >= 2 && n < 4) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb] (different order for 4x3)
-                // if (n >= 5) backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, 4 * ldb * DT_SIZE - 4));
                 if (n >= 5) emitLoadB(B1_Register, configuration, 2, 4 * ldb * DT_SIZE - 4, true);
                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-                // if (n >= 4) backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, 3 * ldb * DT_SIZE - 4));
                 if (n >= 6) emitLoadB(B2_Register, configuration, 3, 5 * ldb * DT_SIZE - 4, true);
                 if (n >= 5) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C40_Register, A0_Register, B1_Register));
-                // if (n >= 6) backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, 5 * ldb * DT_SIZE - 4));
                 if (n >= 4) emitLoadB(B0_Register, configuration, 0, 3 * ldb * DT_SIZE - 4, true);
-                if (n >= 4) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C30_Register, A0_Register, B0_Register));
-                if (n >= 4) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb] (different order for 4x6)
                 if (n >= 6) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C50_Register, A0_Register, B2_Register));
+                if (n >= 4) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb] (different order for 4x6)
+                if (n >= 4) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C30_Register, A0_Register, B0_Register));
                 if (!aNeedsPreadd) backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, (i+1) * lda * DT_SIZE));
-
+                if (i < (maxSkippedAdds-1) && n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
                 if (n >= 3) emitLoadB(B2_Register, configuration, 3, 2 * DT_SIZE * ldb); // load b[2ldb]
             }
             uint32_t skipAdds = maxSkippedAdds * lda * DT_SIZE;
@@ -265,11 +262,11 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
             }
             if (aNeedsPreadd) backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
         }
-        if (k > 3) backend.addLowOverheadBranchFromCurrentPosition(kLoopStart);
+        if (needsDls) backend.addLowOverheadBranchFromCurrentPosition(kLoopStart);
         
         // process rest of k-loop
         for (uint32_t i = 0; i < (k-2) % maxSkippedAdds; i++) {
-            if (n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
+            if (i == 0 && n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
             if (n >= 3) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
             if (n >= 5) emitLoadB(B1_Register, configuration, 2, 4 * ldb * DT_SIZE - 4, true);
@@ -277,12 +274,17 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
             if (n >= 6) emitLoadB(B2_Register, configuration, 3, 5 * ldb * DT_SIZE - 4, true);
             if (n >= 5) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C40_Register, A0_Register, B1_Register));
             if (n >= 4) emitLoadB(B0_Register, configuration, 0, 3 * ldb * DT_SIZE - 4, true);
-            if (n >= 4) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C30_Register, A0_Register, B0_Register));
-            if (n >= 2) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb]
             if (n >= 6) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C50_Register, A0_Register, B2_Register));
+            if (n >= 2) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb]
+            if (n >= 4) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C30_Register, A0_Register, B0_Register));
             if (!aNeedsPreadd) backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, (i+1) * lda * DT_SIZE));
-
+            if (i < (((k-2) % maxSkippedAdds)-1) && n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
             if (n >= 3) emitLoadB(B2_Register, configuration, 3, 2 * DT_SIZE * ldb); // load b[2ldb]
+        }
+
+        if (predicated) {
+            backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, m % VECTOR_ELEMENTS));
+            backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, DLS_COUNT_REGISTER));
         }
 
         // restore C Pointer
@@ -296,10 +298,6 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
             backend.addInstruction(Instructions::Arithmetic::subImmediate32(C_Pointer, n * ldc * DT_SIZE));
         }
 
-        if (predicated) {
-            backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, m % VECTOR_ELEMENTS));
-            backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, DLS_COUNT_REGISTER));
-        }
         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
 
         bool cNeedsPreadd = ldc * DT_SIZE > VLDR_TRESHOLD;
@@ -422,14 +420,16 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         // if the next vldrw can be used with an immediate, use the immediate instead of the add instruction
         // to use this, we need to unroll the k loop
         // handle edge case for really huge k
-        if ((k-2) / maxSkippedAdds > 65535) backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, ((k-2) / maxSkippedAdds) >> 16));
-        backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, (k-2) / maxSkippedAdds));
+        if (needsDls) {
+            if ((k-2) / maxSkippedAdds > 65535) backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, ((k-2) / maxSkippedAdds) >> 16));
+            backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, (k-2) / maxSkippedAdds));
+        }
 
         if (n >= 2) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb]
         if (n == 3) emitLoadB(B2_Register, configuration, 3, 2 * DT_SIZE * ldb); // load b[2ldb]
 
         Instructions::Instruction16 * kLoopStart;
-        if (k > 3) backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
+        if (needsDls) backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
         if (k >= 3) {
             for (uint32_t i = 0; i < maxSkippedAdds; i++) {
                 if (i == 0) {
@@ -443,10 +443,8 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
                     backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
                 }
                 if (n == 3) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-
                 backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, i * lda * DT_SIZE + 16));
-                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
+                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
                 if (aNeedsPreadd) {
                     uint32_t skipAdds = maxSkippedAdds * lda * DT_SIZE;
                     if (skipAdds <= LDR_TRESHOLD) {
@@ -461,35 +459,35 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
                 }
                 if (!aNeedsPreadd) backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, (i+1) * lda * DT_SIZE));
                 else backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
+                backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
+                if (!aNeedsPreadd && i == (maxSkippedAdds - 1)) {
+                    uint32_t skipAdds = maxSkippedAdds * lda * DT_SIZE;
+                    if (skipAdds <= LDR_TRESHOLD) {
+                        backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, skipAdds));
+                    } else {
+                        if (skipAdds > MOV_TRESHOLD) {
+                            backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, skipAdds >> 16));
+                        }
+                        backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, skipAdds));
+                        backend.addInstruction(Instructions::Arithmetic::addRegister32(A_Pointer, DLS_COUNT_REGISTER));
+                    }
+                }
                 if (n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
                 if (n >= 2) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb]
                 if (n == 3) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C21_Register, A1_Register, B2_Register));
                 if (n == 3) emitLoadB(B2_Register, configuration, 3, 2 * DT_SIZE * ldb); // load b[2ldb]
             }
-            if (!aNeedsPreadd) {
-                uint32_t skipAdds = maxSkippedAdds * lda * DT_SIZE;
-                if (skipAdds <= LDR_TRESHOLD) {
-                    backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, skipAdds));
-                } else {
-                    if (skipAdds > MOV_TRESHOLD) {
-                        backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, skipAdds >> 16));
-                    }
-                    backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, skipAdds));
-                    backend.addInstruction(Instructions::Arithmetic::addRegister32(A_Pointer, DLS_COUNT_REGISTER));
-                }
-            }
-            // if (aNeedsPreadd) backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
         }
-        if (k > 3) backend.addLowOverheadBranchFromCurrentPosition(kLoopStart);
+        if (needsDls) backend.addLowOverheadBranchFromCurrentPosition(kLoopStart);
 
         // process rest of k-loop
         for (uint32_t i = 0; i < (k-2) % maxSkippedAdds; i++) {
             if (n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C10_Register, A0_Register, B1_Register));
             backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
             if (n == 3) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
+            backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, i * lda * DT_SIZE + 16));
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
             // add A_Pointer, i*lda
-            backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, i * lda * DT_SIZE + 16));
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
             if (!aNeedsPreadd) backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, (i+1) * lda * 4));
             if (n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
