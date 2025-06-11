@@ -113,11 +113,11 @@ static float a[peakCount];// __attribute__((used, section(".bss.array_region_sra
 static float b[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 static float c[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 */
-// #define CONST_SIZE
+#define CONST_SIZE
 #ifdef CONST_SIZE
-static const uint32_t M = 12;
+static const uint32_t M = 4;
 static const uint32_t K = 4;
-static const uint32_t N = 12;
+static const uint32_t N = 4;
 static float bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
@@ -441,7 +441,7 @@ void constSizeTest(uint32_t m, uint32_t n, uint32_t k) {
     for (uint32_t i = 0; i < repeats; i++) {
         time = testShape(m, n, k, iterations, gemmGen);
         gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
-        sprintf(PRINTF_OUT_STRING, "4x6-Baseline;%d;%d;%d;TillJIT;%f;%d;%d;1\r\n", m, k, n, gflops, time, iterations);
+        sprintf(PRINTF_OUT_STRING, "8x3-earlyMOV;%d;%d;%d;TillJIT;%f;%d;%d;1\r\n", m, k, n, gflops, time, iterations);
         SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
     }
 }
