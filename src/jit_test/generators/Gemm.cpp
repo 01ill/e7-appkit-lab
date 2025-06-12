@@ -1,4 +1,5 @@
 #include "Gemm.hpp"
+#include "backend/Backend.hpp"
 #include "instructions/Arithmetic.hpp"
 #include "instructions/Base.hpp"
 #include "instructions/DataProcessing.hpp"
@@ -458,7 +459,6 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
                     }
                 }
                 if (!aNeedsPreadd) backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, (i+1) * lda * DT_SIZE));
-                else backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
                 backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
                 if (!aNeedsPreadd && i == (maxSkippedAdds - 1)) {
                     uint32_t skipAdds = maxSkippedAdds * lda * DT_SIZE;
@@ -472,6 +472,7 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
                         backend.addInstruction(Instructions::Arithmetic::addRegister32(A_Pointer, DLS_COUNT_REGISTER));
                     }
                 }
+                if (aNeedsPreadd) backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
                 if (n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
                 if (n >= 2) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb]
                 if (n == 3) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C21_Register, A1_Register, B2_Register));
@@ -488,22 +489,20 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
             backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, i * lda * DT_SIZE + 16));
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
             // add A_Pointer, i*lda
-            backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
             if (!aNeedsPreadd) backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, (i+1) * lda * 4));
+            backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
             if (n >= 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C11_Register, A1_Register, B1_Register));
             if (n >= 2) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb]
             if (n == 3) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C21_Register, A1_Register, B2_Register));
             if (n == 3) emitLoadB(B2_Register, configuration, 3, 2 * DT_SIZE * ldb); // load b[2ldb]
         }
-        // only add immediate if needed (TODO: is never needed and we can just use immediate in the next vldrw instructions)
-        if ((k-2) % maxSkippedAdds > 0) backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, ((k-2) % maxSkippedAdds) * lda * 4));
         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
         if (predicated) { // predicate next 3 instructions
-            backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, m % 4)); // TODO move a bit earlier maybe (?)
+            backend.addInstruction(Instructions::DataProcessing::movImmediate32(DLS_COUNT_REGISTER, m % VECTOR_ELEMENTS));
             backend.addInstruction(Instructions::Vector::vctp(Instructions::Size32, DLS_COUNT_REGISTER));
             backend.addInstruction(Instructions::Vector::vpst(3));
         }
-        backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
+        backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, aNeedsPreadd ? 4 * DT_SIZE : ((k - 2) % maxSkippedAdds) * lda * DT_SIZE + (4 * DT_SIZE)));
         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
         backend.addInstruction(Instructions::Vector::vstrw(C01_Register, C_Pointer, 16));
         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
@@ -702,7 +701,7 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
         // backend.addInstruction(Instructions::DataProcessing::movRegister32(A_Pointer, A_Base_Pointer));
         // Rewind B => B = B - 4*k
         if (DT_SIZE * k > LDR_TRESHOLD) {
-            if (configuration.registerStrategy & USE_K_LEN_REGISTER) {
+            if (configuration.registerStrategy & USE_K_LEN_REGISTER && k == ldb) {
                 backend.addInstruction(Instructions::Arithmetic::subRegister32(B_Pointer, configuration.K_LEN_REGISTER, Instructions::LSL, 2));
             } else {
                 if (DT_SIZE * k > MOV_TRESHOLD) {
@@ -769,7 +768,7 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
         // gemm loop i end (next j)
         // Rewind A -> already rewinded by i so need to reset
         // Rewind B -> rewinded by i to start. add 3*len
-        uint32_t const addB = k * (highestN-1) * DT_SIZE;
+        uint32_t const addB = ldb * (highestN-1) * DT_SIZE;
         if (addB > LDR_TRESHOLD) {
             if (addB > MOV_TRESHOLD) {
                 backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, addB >> 16));
@@ -782,7 +781,7 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
         // Forward C => C += 8*4
         // After each block is computed in the m-loop, C has to move forward to the next block
         // Rewind C -> still have to go two lines -> 2ldc
-        uint32_t const addC = (highestN) * m * DT_SIZE;
+        uint32_t const addC = (highestN) * ldc * DT_SIZE;
         if (addC > LDR_TRESHOLD) {
             if (addC > MOV_TRESHOLD) {
                 backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, addC >> 16));
@@ -843,7 +842,7 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
         // Rewind B => B = B - 4*k
         // b will be incremented in each k-Iteration by ldr r7, [r1], #4. this is done k times and needs to be reverted
         if (DT_SIZE * k > LDR_TRESHOLD) {
-            if (configuration.registerStrategy & USE_K_LEN_REGISTER) {
+            if (configuration.registerStrategy & USE_K_LEN_REGISTER && k == ldb) {
                 backend.addInstruction(Instructions::Arithmetic::subRegister32(B_Pointer, configuration.K_LEN_REGISTER, Instructions::LSL, 2));
             } else {
                 if (DT_SIZE * k > MOV_TRESHOLD) {
@@ -898,7 +897,7 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
             // no real rewind. calculate a[i] and restore from base pointer because rewind overflows the immediate
             // Rewind B => B = B - 4*k
             if (DT_SIZE * k > LDR_TRESHOLD) {
-                if (configuration.registerStrategy & USE_K_LEN_REGISTER) {
+                if (configuration.registerStrategy & USE_K_LEN_REGISTER && k == ldb) {
                     backend.addInstruction(Instructions::Arithmetic::subRegister32(B_Pointer, configuration.K_LEN_REGISTER, Instructions::LSL, 2));
                 } else {
                     if (DT_SIZE * k > MOV_TRESHOLD) {
@@ -922,7 +921,7 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
         // Rewind A -> already rewinded by i so need to reset
         backend.addInstruction(Instructions::DataProcessing::movRegister16(A_Pointer, A_Base_Pointer));
         // Rewind B -> rewinded by i to start. add 3*len
-        uint32_t const addB = k * DEFAULT_MICROKERNEL_N * DT_SIZE;
+        uint32_t const addB = ldb * DEFAULT_MICROKERNEL_N * DT_SIZE;
         if (addB > LDR_TRESHOLD) {
             if (addB > MOV_TRESHOLD) {
                 backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, addB >> 16));
@@ -933,7 +932,7 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
             backend.addInstruction(Instructions::Arithmetic::addImmediate32(B_Pointer, addB));
         }
         // Rewind C -> still have to go two lines -> 2ldc
-        uint32_t const addC = (DEFAULT_MICROKERNEL_N - 1) * m * DT_SIZE;
+        uint32_t const addC = (DEFAULT_MICROKERNEL_N - 1) * ldc * DT_SIZE;
         if (addC > LDR_TRESHOLD) {
             if (addC > MOV_TRESHOLD) {
                 backend.addInstruction(Instructions::DataProcessing::movtImmediate32(DLS_COUNT_REGISTER, addC >> 16));
@@ -983,7 +982,7 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
             // Rewind B => B = B - 4*k
             // not possible to subtract immediate
             if (DT_SIZE * k > LDR_TRESHOLD) {
-                if (configuration.registerStrategy & USE_K_LEN_REGISTER) { // can utilize k register
+                if (configuration.registerStrategy & USE_K_LEN_REGISTER && k == ldb) { // can utilize k register
                     backend.addInstruction(Instructions::Arithmetic::subRegister32(B_Pointer, configuration.K_LEN_REGISTER, Instructions::LSL, 2));
                 } else {
                     // TODO provide slow fallback (will never happen as K Register has highest priority)
