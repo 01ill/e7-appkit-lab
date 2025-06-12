@@ -12,5 +12,6 @@ void stopCounting();
 
 void printCounter();
 void printCounterStalls();
+void printCounterMemory();
 
 #endif // PROFILING_HPP

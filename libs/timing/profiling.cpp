@@ -1,6 +1,10 @@
 #include "profiling.hpp"
+#ifdef M55_HP
 #include "M55_HP.h"
-
+#endif
+#ifdef M55_HE
+#include "M55_HE.h"
+#endif
 #include "SEGGER_RTT.h"
 #include "m-profile/armv8m_pmu.h"
 #include <cstdint>
@@ -17,7 +21,6 @@ void setupProfilingMVEStalls() {
 	ARM_PMU_Set_EVTYPER(6, ARM_PMU_MVE_STALL_RESOURCE_FP);
 	ARM_PMU_Set_EVTYPER(7, ARM_PMU_MVE_STALL_RESOURCE_INT);
 	ARM_PMU_Set_EVTYPER(8, ARM_PMU_MVE_STALL_BREAK);
-	ARM_PMU_Set_EVTYPER(1, ARM_PMU_L1I_CACHE);
 	ARM_PMU_Set_EVTYPER(6, ARM_PMU_MVE_INST_RETIRED);
 	ARM_PMU_Set_EVTYPER(7, ARM_PMU_MVE_LDST_RETIRED);
 }
@@ -33,18 +36,24 @@ void setupProfilingStalls() {
 	ARM_PMU_Set_EVTYPER(5, ARM_PMU_STALL_OP_FRONTEND);
 }
 
+void setupProfilingMemory() {
+	ARM_PMU_Enable();
+
+	ARM_PMU_Set_EVTYPER(0, ARM_PMU_L1D_CACHE);
+	ARM_PMU_Set_EVTYPER(1, ARM_PMU_L1D_CACHE_MISS_RD); 
+	ARM_PMU_Set_EVTYPER(2, ARM_PMU_L1D_CACHE_RD);
+	ARM_PMU_Set_EVTYPER(3, ARM_PMU_L1I_CACHE);
+}
+
 void setupProfilingMVEInstructions() {
 	ARM_PMU_Enable();
 }
-
-
 
 void startCounting() {
     ARM_PMU_EVCNTR_ALL_Reset();
 	ARM_PMU_CNTR_Enable(PMU_CNTENSET_CCNTR_ENABLE_Msk | PMU_CNTENSET_CNT0_ENABLE_Msk | PMU_CNTENSET_CNT1_ENABLE_Msk | PMU_CNTENSET_CNT2_ENABLE_Msk | PMU_CNTENSET_CNT3_ENABLE_Msk 
 		| PMU_CNTENSET_CNT4_ENABLE_Msk | PMU_CNTENSET_CNT5_ENABLE_Msk | PMU_CNTENSET_CNT6_ENABLE_Msk | PMU_CNTENSET_CNT7_ENABLE_Msk | PMU_CNTENSET_CNT8_ENABLE_Msk);
 	ARM_PMU_CYCCNT_Reset();
-
 }
 
 void stopCounting() {
@@ -97,4 +106,11 @@ void printCounterStalls() {
 	SEGGER_RTT_printf(0, "-- -- OP Backend Stalls: %d\n", ARM_PMU_Get_EVCNTR(4));
 	SEGGER_RTT_printf(0, "-- -- OP Frontend Stalls: %d\n", ARM_PMU_Get_EVCNTR(5));
 
+}
+
+void printCounterMemory() {
+	SEGGER_RTT_printf(0, "L1D: %d\n", ARM_PMU_Get_EVCNTR(0));
+	SEGGER_RTT_printf(0, "L1D Miss: %d\n", ARM_PMU_Get_EVCNTR(1));
+	SEGGER_RTT_printf(0, "L1D Read: %d\n", ARM_PMU_Get_EVCNTR(2));
+	SEGGER_RTT_printf(0, "L1I: %d\n", ARM_PMU_Get_EVCNTR(3));
 }

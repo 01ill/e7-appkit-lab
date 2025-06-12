@@ -107,6 +107,7 @@ LR_ROM __ROM_BASE NOCOMPRESS __ROM_SIZE  {    ; load region size_region
   }
 
   ITCM_RAM __ITCM_BASE __ITCM_SIZE  {                     ; RW code
+    * (.itcm_jit)
    ; Specify objects intended to execute out of ITCM
   }
 
