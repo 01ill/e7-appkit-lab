@@ -15,6 +15,14 @@
 #include "timing.hpp"
 #include "arm_math.h"
 
+#ifdef M55_HE
+constexpr float peak = 0.64;
+#endif
+
+#ifdef M55_HP
+constexpr float peak = 1.6;
+#endif
+
 constexpr bool testReference = false;
 constexpr bool testIntrinsics = false;
 constexpr bool testArm = false;
@@ -113,21 +121,21 @@ static float a[peakCount];// __attribute__((used, section(".bss.array_region_sra
 static float b[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 static float c[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 */
-#define CONST_SIZE
+// #define CONST_SIZE
 #ifdef CONST_SIZE
-static const uint32_t M = 24;
+static const uint32_t M = 132;
 static const uint32_t K = 24;
-static const uint32_t N = 24;
+static const uint32_t N = 9;
 static float bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
-static float bigCRef[M*N]; __attribute__((used, section(".bss.array_region_sram0")));
+static float bigCRef[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
 #else
 static constexpr uint32_t arrayMaxSize = 240;
 static float bigA[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
-static float bigCRef[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
+static float bigCRef[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
 #endif
 
 JIT::Instructions::Instruction16 globalBuffer[3072] __attribute__((section(".itcm_jit"), aligned(4)));
@@ -140,16 +148,44 @@ void initMatrices(float * a, float * b, float * c, float * cref, const uint32_t 
 	for (uint32_t i = 0; i < m*n; i++) cref[i] = zeroC ? 0 : i + 2;
 }
 
-constexpr uint32_t mBlocking = 8;
-constexpr uint32_t nBlocking = 3;
+constexpr uint32_t mBlocking = 24;
+constexpr uint32_t nBlocking = 24;
+constexpr uint32_t kBlocking = 24;
 
 void jitBlocked(float * a, float * b, float * c, const uint32_t m, const uint32_t n, const uint32_t k, JIT::Generators::Gemm::Func gemmFunc) {   
     for (uint32_t i = 0; i < m; i += mBlocking) {
-        for (uint32_t j = 0; j < n; j += nBlocking) {                
-            gemmFunc(&a[i], &b[j * k ], &c[j * m + i]);
+        for (uint32_t j = 0; j < n; j += nBlocking) {
+            for (uint32_t p = 0; p < k; p += kBlocking) {
+                gemmFunc(&a[i * k + p], &b[j * k + p], &c[j * m + i]);
+            }
         }
     }
 }
+
+void jitBlocked_m(float * a, float * b, float * c, const uint32_t m, const uint32_t n, const uint32_t k, JIT::Generators::Gemm::Func gemmFunc) {   
+    for (uint32_t i = 0; i < m; i += mBlocking) {
+        gemmFunc(&a[i], &b[0], &c[i]);
+    }
+}
+
+void jitBlocked_mk(float * a, float * b, float * c, const uint32_t m, const uint32_t n, const uint32_t k, JIT::Generators::Gemm::Func gemmFunc) {   
+    for (uint32_t i = 0; i < m; i += mBlocking) {
+        for (uint32_t p = 0; p < k; p += kBlocking) {
+            gemmFunc(&a[p * m + i], &b[p], &c[i]);
+        }
+    }
+}
+
+void jitBlocked_mkn(float * a, float * b, float * c, const uint32_t m, const uint32_t n, const uint32_t k, JIT::Generators::Gemm::Func gemmFunc) {   
+    for (uint32_t i = 0; i < m; i += mBlocking) {
+        for (uint32_t p = 0; p < k; p += kBlocking) {
+            for (uint32_t j = 0; j < n; j += nBlocking) {
+                gemmFunc(&a[p * m + i], &b[j * k + p], &c[j * m + i]);
+            }
+        }
+    }
+}
+
 /*
 void armBlocked(float * a, float * b, float * c, const uint32_t m, const uint32_t n, const uint32_t k, JIT::Generators::Gemm::Func gemmFunc) {   
     for (uint32_t i = 0; i < m; i += mBlocking) {
@@ -162,15 +198,23 @@ void armBlocked(float * a, float * b, float * c, const uint32_t m, const uint32_
 
 int32_t testShape(uint32_t m, uint32_t n, uint32_t k, uint32_t iterations, JIT::Generators::Gemm & generator) {
     auto gemmFunc = generator.generate(m, k, n, m, k, m);
+    // auto gemmFunc = generator.generate(mBlocking, kBlocking, n, m, k, m);
     gemmFunc = generator.bufferToFunc(globalBuffer);
 
     initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
+    // setupProfilingMemory();
+    // startCounting();
     gemmFunc(bigA, bigB, bigC);
+    // jitBlocked_mk(bigA, bigB, bigC, m, n, k, gemmFunc);
+    // stopCounting();
+    // printCounterMemory();
+
     gemm_reference_column_major(bigA, bigB, bigCRef, n, k, m, m, k, m);
     int32_t compareResult = compare(bigC, bigCRef, m*n);
     initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
     auto start = RTC_Clock::now();
-    for (uint32_t j = 0; j < iterations; j++) {
+    for (uint32_t it = 0; it < iterations; it++) {
+        // jitBlocked_mk(bigA, bigB, bigC, m, n, k, gemmFunc);
         gemmFunc(bigA, bigB, bigC);
     }
     auto end = RTC_Clock::now();
@@ -243,7 +287,7 @@ void testSquareShapes() {
         n = i;
         k = i;
         uint32_t flops = 2 * m * k * n;
-        uint32_t iterations = (1.6 * pow(10, 9)) / flops;
+        uint32_t iterations = (peak * pow(10, 9)) / flops;
         if (testArm) {
             time = testShapeArm(m, n, k, iterations);
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
@@ -293,7 +337,7 @@ void testGrowingK() {
         // 2n^3 * x = 1.6 * 10^9
         k = i;
         uint32_t flops = 2 * m * k * n;
-        uint32_t iterations = (1.6 * pow(10, 9)) / flops;
+        uint32_t iterations = (peak * pow(10, 9)) / flops;
         if (testArm) {
             time = testShapeArm(m, n, k, iterations);
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
@@ -343,7 +387,7 @@ void testGrowingM() {
         // 2n^3 * x = 1.6 * 10^9
         m = i;
         uint32_t flops = 2 * m * k * n;
-        uint32_t iterations = (1.6 * pow(10, 9)) / flops;
+        uint32_t iterations = (peak * pow(10, 9)) / flops;
         if (testArm) {
             time = testShapeArm(m, n, k, iterations);
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
@@ -393,7 +437,7 @@ void testGrowingN() {
         // 2n^3 * x = 1.6 * 10^9
         n = i;
         uint32_t flops = 2 * m * k * n;
-        uint32_t iterations = (1.6 * pow(10, 9)) / flops;
+        uint32_t iterations = (peak * pow(10, 9)) / flops;
         if (testArm) {
             time = testShapeArm(m, n, k, iterations);
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
@@ -435,7 +479,7 @@ void constSizeTest(uint32_t m, uint32_t n, uint32_t k) {
     JIT::Generators::Gemm gemmGen;
     uint32_t repeats = 5;
     uint32_t flops = 2 * m * k * n;
-    uint32_t iterations = (1.6 * pow(10, 9)) / flops;
+    uint32_t iterations = (peak * pow(10, 9)) / flops;
     int32_t time;
     double gflops;
     for (uint32_t i = 0; i < repeats; i++) {
@@ -446,11 +490,49 @@ void constSizeTest(uint32_t m, uint32_t n, uint32_t k) {
     }
 }
 
+void configureMPU() {
+    // Disable MPU
+    ARM_MPU_Disable();
+    
+    // Define the MPU region table
+    static const ARM_MPU_Region_t mpu_table[] = {
+        {
+            // SRAM0 region with caching enabled
+            .RBAR = ARM_MPU_RBAR(0x02000000UL, ARM_MPU_SH_NON, 0UL, 1UL, 0UL), // RW, NP, XN
+            .RLAR = ARM_MPU_RLAR(0x023FFFFFUL, 1UL) // SRAM0 with cacheable attribute
+        }
+    };
+    
+    // Define memory attributes
+    ARM_MPU_SetMemAttr(0UL, ARM_MPU_ATTR_DEVICE); // Device Memory
+    ARM_MPU_SetMemAttr(1UL, ARM_MPU_ATTR( // Normal Memory, Write-back, Read/Write-Allocate
+        ARM_MPU_ATTR_MEMORY_(1,1,1,1), 
+        ARM_MPU_ATTR_MEMORY_(1,1,1,1)
+    ));
+    ARM_MPU_SetMemAttr(2UL, ARM_MPU_ATTR( // Normal Memory, Transient, Write-through, Read-Allocate
+        ARM_MPU_ATTR_MEMORY_(0,0,1,0), 
+        ARM_MPU_ATTR_MEMORY_(0,0,1,0)
+    ));
+    
+    // Load the regions from the table
+    ARM_MPU_Load(0U, &mpu_table[0], sizeof(mpu_table)/sizeof(ARM_MPU_Region_t));
+    
+    // Enable MPU with default memory map for privileged access
+    ARM_MPU_Enable(MPU_CTRL_PRIVDEFENA_Msk);
+}
 
 __NO_RETURN int main() {
  	fault_dump_enable(true);
 	SEGGER_RTT_ConfigUpBuffer(0, nullptr, nullptr, 0, SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
 	LPRTC::getInstance().enable();
+
+    // configureMPU();
+
+    // SCB_InvalidateICache();
+    // SCB_EnableICache();
+
+    // SCB_InvalidateDCache();
+    // SCB_EnableDCache();
 
 #ifdef CONST_SIZE
     uint32_t m = M, n = N, k = K;
@@ -506,8 +588,8 @@ __NO_RETURN int main() {
 */
 #endif
 #ifndef CONST_SIZE
-    // testSquareShapes();
-    // testGrowingK();
+    testSquareShapes();
+    testGrowingK();
     testGrowingM();
     testGrowingN();
 #endif

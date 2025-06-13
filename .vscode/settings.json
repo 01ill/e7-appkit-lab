@@ -3,7 +3,7 @@
         "*.h": "c",
     },
     "cmake.configureOnOpen": false,
-    "cortex-debug.variableUseNaturalFormat": false,
+    "cortex-debug.variableUseNaturalFormat": true,
     "cmsis-csolution.actions": [
         {
             "path": "alif.csolution.yml",
@@ -21,7 +21,7 @@
         }
     ],
     "clangd.arguments": [
-        "--compile-commands-dir=/Users/till/Documents/Studium/Module/2025_SoSe/Tests/e7-appkit-lab/out/jit_test/HP/debug-release-ac6"
+        "--compile-commands-dir=/Users/till/Documents/Studium/Module/2025_SoSe/Tests/e7-appkit-lab/out/jit_test/HE/debug-release-ac6"
     ],
     "debug.hideSlowPreLaunchWarning": true,
 }

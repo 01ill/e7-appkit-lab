@@ -158,10 +158,24 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
             } else backend.addInstruction(Instructions::Arithmetic::addImmediate32(configuration.K_LEN2_REGISTER, B_Pointer, imm));
         }
 
-        uint32_t vldrImmA = 0;
         if (n >= 2) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb]
         if (n >= 3) emitLoadB(B2_Register, configuration, 3, 2 * DT_SIZE * ldb); // load b[2ldb]
         backend.addHeliumInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
+        uint32_t vldrImmA = ldc * DT_SIZE;
+        if (configuration.registerStrategy & USE_A_ADD_REGISTER) {
+            backend.addInstruction(Instructions::Arithmetic::addRegister32(A_Pointer, configuration.A_ADD_REGISTER));
+            vldrImmA = 0;
+        } else if (aNeedsPreadd) {
+            if (vldrImmA < LDR_TRESHOLD) {
+                backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda * DT_SIZE));
+                vldrImmA = 0;
+            } else {
+                // TODO: slow fallback (will never happen anyways as A has priority)
+                Instructions::Base::printValidationError("loadA Immediate Fallback; inserting nop");
+                backend.addInstruction(Instructions::Base::nop32());
+            }
+            vldrImmA = 0;
+        }
         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
         emitLoadStoreC46(C00_Register, ldc);
         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
@@ -189,23 +203,6 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         if (n >= 6) {
             emitLoadStoreC46(C50_Register, ldc);
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C50_Register, A0_Register, B2_Register));
-        }
-
-        // Load A[0]
-        vldrImmA = ldc * DT_SIZE;
-        if (configuration.registerStrategy & USE_A_ADD_REGISTER) {
-            backend.addInstruction(Instructions::Arithmetic::addRegister32(A_Pointer, configuration.A_ADD_REGISTER));
-            vldrImmA = 0;
-        } else if (aNeedsPreadd) {
-            if (vldrImmA < LDR_TRESHOLD) {
-                backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, lda * DT_SIZE));
-                vldrImmA = 0;
-            } else {
-                // TODO: slow fallback (will never happen anyways as A has priority)
-                Instructions::Base::printValidationError("loadA Immediate Fallback; inserting nop");
-                backend.addInstruction(Instructions::Base::nop32());
-            }
-            vldrImmA = 0;
         }
 
         backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, vldrImmA));
@@ -372,11 +369,27 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         }
 
 
-        uint32_t vldrImmA = 0;
         if (n >= 2) emitLoadB(B1_Register, configuration, 2, DT_SIZE * ldb); // load b[ldb]
         backend.addHeliumInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer));
         if (n >= 3) emitLoadB(B2_Register, configuration, 3, 2 * DT_SIZE * ldb); // load b[2ldb]
         backend.addInstruction(Instructions::Vector::vldrw(A1_Register, A_Pointer, 16));
+        // Add to A Pointer. If not large enough reuse DLS Count register
+        // Load A[0]
+        uint32_t vldrImmA = ldc * DT_SIZE;
+        if (configuration.registerStrategy & USE_A_ADD_REGISTER) {
+            backend.addInstruction(Instructions::Arithmetic::addRegister32(A_Pointer, configuration.A_ADD_REGISTER));
+            vldrImmA = 0;
+        } else if (aNeedsPreadd) {
+            if (vldrImmA < LDR_TRESHOLD) {
+                backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, ldc * DT_SIZE));
+                vldrImmA = 0;
+            } else {
+                // TODO: slow fallback (will never happen anyways as A has priority)
+                Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
+                backend.addInstruction(Instructions::Base::nop32());
+            }
+            vldrImmA = 0;
+        }
         backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
         backend.addInstruction(Instructions::Vector::vldrw(C01_Register, C_Pointer, 16));
         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C01_Register, A1_Register, B0_Register));
@@ -395,24 +408,6 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         }
         backend.addInstruction(Instructions::Vector::vldrw(C00_Register, C_Pointer));
         backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C00_Register, A0_Register, B0_Register));
-
-        // Add to A Pointer. If not large enough reuse DLS Count register
-        // Load A[0]
-        vldrImmA = ldc * DT_SIZE;
-        if (configuration.registerStrategy & USE_A_ADD_REGISTER) {
-            backend.addInstruction(Instructions::Arithmetic::addRegister32(A_Pointer, configuration.A_ADD_REGISTER));
-            vldrImmA = 0;
-        } else if (aNeedsPreadd) {
-            if (vldrImmA < LDR_TRESHOLD) {
-                backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, ldc * DT_SIZE));
-                vldrImmA = 0;
-            } else {
-                // TODO: slow fallback (will never happen anyways as A has priority)
-                Instructions::Base::printValidationError("Load Immediate Fallback; inserting nop");
-                backend.addInstruction(Instructions::Base::nop32());
-            }
-            vldrImmA = 0;
-        }
 
         backend.addInstruction(Instructions::Vector::vldrw(A0_Register, A_Pointer, vldrImmA));
         vldrImmA = 0;
