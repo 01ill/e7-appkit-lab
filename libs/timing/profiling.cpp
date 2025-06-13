@@ -47,6 +47,11 @@ void setupProfilingMemory() {
 
 void setupProfilingMVEInstructions() {
 	ARM_PMU_Enable();
+
+	ARM_PMU_Set_EVTYPER(0, ARM_PMU_CPU_CYCLES);
+	ARM_PMU_Set_EVTYPER(1, ARM_PMU_INST_RETIRED);
+	ARM_PMU_Set_EVTYPER(2, ARM_PMU_MVE_INST_RETIRED);
+	ARM_PMU_Set_EVTYPER(3, ARM_PMU_MVE_STALL);
 }
 
 void startCounting() {
@@ -113,4 +118,12 @@ void printCounterMemory() {
 	SEGGER_RTT_printf(0, "L1D Miss: %d\n", ARM_PMU_Get_EVCNTR(1));
 	SEGGER_RTT_printf(0, "L1D Read: %d\n", ARM_PMU_Get_EVCNTR(2));
 	SEGGER_RTT_printf(0, "L1I: %d\n", ARM_PMU_Get_EVCNTR(3));
+}
+
+void printCounterMVEInstructions() {
+	SEGGER_RTT_printf(0, "Instruction Count: %d\n", ARM_PMU_Get_EVCNTR(0));
+	SEGGER_RTT_printf(0, "Cycle Count: %d\n", ARM_PMU_Get_EVCNTR(1));
+	SEGGER_RTT_printf(0, "MVE Instructions: %d\n", ARM_PMU_Get_EVCNTR(2));
+	SEGGER_RTT_printf(0, "MVE Stall Cycles: %d\n", ARM_PMU_Get_EVCNTR(3));
+	// see https://kannwischer.eu/papers/2022_ntt-int-mul.pdf, p. 19
 }
