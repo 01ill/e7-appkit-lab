@@ -8,3 +8,4 @@ tmp/
 src/*/RTE/*
 src/jit_test/tests/build/*
 src/jit_test/tests/Testing/*
+.DS_Store
