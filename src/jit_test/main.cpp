@@ -123,9 +123,9 @@ static float c[peakCount];// __attribute__((used, section(".bss.array_region_sra
 */
 // #define CONST_SIZE
 #ifdef CONST_SIZE
-static const uint32_t M = 132;
+static const uint32_t M = 24;
 static const uint32_t K = 24;
-static const uint32_t N = 9;
+static const uint32_t N = 24;
 static float bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
@@ -195,6 +195,22 @@ void armBlocked(float * a, float * b, float * c, const uint32_t m, const uint32_
     }
 }
 */
+
+int32_t testShapeGenerateTime(uint32_t m, uint32_t n, uint32_t k, uint32_t iterations, JIT::Generators::Gemm & generator) {
+    JIT::Generators::Gemm::Func gemmFunc;
+    initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
+
+    auto start = RTC_Clock::now();
+    for (uint32_t it = 0; it < iterations; it++) {
+        gemmFunc = generator.generate(m, k, n, m, k, m);
+        gemmFunc = generator.bufferToFunc(globalBuffer);
+    }
+    auto end = RTC_Clock::now();
+    gemmFunc(bigA, bigB, bigC);
+    auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    return time; // return negative value if test not succesful
+
+}
 
 int32_t testShape(uint32_t m, uint32_t n, uint32_t k, uint32_t iterations, JIT::Generators::Gemm & generator) {
     auto gemmFunc = generator.generate(m, k, n, m, k, m);
@@ -288,6 +304,7 @@ void testSquareShapes() {
         k = i;
         uint32_t flops = 2 * m * k * n;
         uint32_t iterations = (peak * pow(10, 9)) / flops;
+        iterations = 30000;
         if (testArm) {
             time = testShapeArm(m, n, k, iterations);
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
@@ -296,7 +313,7 @@ void testSquareShapes() {
         }
 
         if (testJitter) {
-            time = testShape(m, n, k, iterations, gemmGen);
+            time = testShapeGenerateTime(m, n, k, iterations, gemmGen);
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
             bool correctResult = gflops > 0;
             if (!correctResult) gflops = -gflops;
@@ -485,7 +502,7 @@ void constSizeTest(uint32_t m, uint32_t n, uint32_t k) {
     for (uint32_t i = 0; i < repeats; i++) {
         time = testShape(m, n, k, iterations, gemmGen);
         gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
-        sprintf(PRINTF_OUT_STRING, "8x3-ADD-Reorder;%d;%d;%d;TillJIT;%f;%d;%d;1\r\n", m, k, n, gflops, time, iterations);
+        sprintf(PRINTF_OUT_STRING, "Unroll5;%d;%d;%d;TillJIT;%f;%d;%d;1\r\n", m, k, n, gflops, time, iterations);
         SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
     }
 }
@@ -589,9 +606,9 @@ __NO_RETURN int main() {
 #endif
 #ifndef CONST_SIZE
     testSquareShapes();
-    testGrowingK();
-    testGrowingM();
-    testGrowingN();
+    // testGrowingK();
+    // testGrowingM();
+    // testGrowingN();
 #endif
 	LPRTC::getInstance().disable();
 	while (1) {
