@@ -1,0 +1,5 @@
+Test;TimeAbs;Count
+BranchBackward;2241;100000000
+BranchForward;2489;100000000
+BranchLOB;1992;100000000
+BranchCBZ;2489;100000000
