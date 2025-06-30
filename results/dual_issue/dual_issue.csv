@@ -1,0 +1,9 @@
+Type; Cycle Count; Instruction Count
+Dual11;6492;810
+11First;6492;810
+01First;6492;810
+32BitSecond;7551;810
+32BitFirst;7551;810
+32BitBoth;8592;810
+CMN16Both;6492;810
+CMN32Both;8592;810
