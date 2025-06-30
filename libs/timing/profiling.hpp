@@ -5,6 +5,7 @@ void setupProfilingMVEStalls();
 void setupProfilingMVEInstructions();
 void setupProfilingMemory();
 void setupProfilingStalls();
+void setupProfilingDualIssue();
 
 void startCounting();
 
@@ -13,5 +14,6 @@ void stopCounting();
 void printCounter();
 void printCounterStalls();
 void printCounterMemory();
+void printCounterDualIssue();
 
 #endif // PROFILING_HPP

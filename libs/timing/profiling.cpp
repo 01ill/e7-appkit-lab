@@ -6,8 +6,8 @@
 #include "M55_HE.h"
 #endif
 #include "SEGGER_RTT.h"
-#include "m-profile/armv8m_pmu.h"
 #include <cstdint>
+#include <cstdio>
 
 void setupProfilingMVEStalls() {
     ARM_PMU_Enable();
@@ -54,16 +54,27 @@ void setupProfilingMVEInstructions() {
 	ARM_PMU_Set_EVTYPER(3, ARM_PMU_MVE_STALL);
 }
 
+void setupProfilingDualIssue() {
+	ARM_PMU_Enable();
+
+	ARM_PMU_Set_EVTYPER(0, ARM_PMU_CPU_CYCLES);
+	ARM_PMU_Set_EVTYPER(1, ARM_PMU_INST_RETIRED);
+	ARM_PMU_Set_EVTYPER(2, ARM_PMU_OP_COMPLETE);
+	ARM_PMU_Set_EVTYPER(3, ARM_PMU_STALL);
+}
+
 void startCounting() {
+	// DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+	// DWT->CTRL |= DWT_CTRL_FOLDEVTENA_Msk;
     ARM_PMU_EVCNTR_ALL_Reset();
-	ARM_PMU_CNTR_Enable(PMU_CNTENSET_CCNTR_ENABLE_Msk | PMU_CNTENSET_CNT0_ENABLE_Msk | PMU_CNTENSET_CNT1_ENABLE_Msk | PMU_CNTENSET_CNT2_ENABLE_Msk | PMU_CNTENSET_CNT3_ENABLE_Msk 
-		| PMU_CNTENSET_CNT4_ENABLE_Msk | PMU_CNTENSET_CNT5_ENABLE_Msk | PMU_CNTENSET_CNT6_ENABLE_Msk | PMU_CNTENSET_CNT7_ENABLE_Msk | PMU_CNTENSET_CNT8_ENABLE_Msk);
 	ARM_PMU_CYCCNT_Reset();
+	ARM_PMU_CNTR_Enable(PMU_CNTENSET_CCNTR_ENABLE_Msk | PMU_CNTENSET_CNT0_ENABLE_Msk | PMU_CNTENSET_CNT1_ENABLE_Msk | PMU_CNTENSET_CNT2_ENABLE_Msk | PMU_CNTENSET_CNT3_ENABLE_Msk 
+		| PMU_CNTENSET_CNT4_ENABLE_Msk | PMU_CNTENSET_CNT5_ENABLE_Msk | PMU_CNTENSET_CNT6_ENABLE_Msk | PMU_CNTENSET_CNT7_ENABLE_Msk);
 }
 
 void stopCounting() {
 	ARM_PMU_CNTR_Disable(PMU_CNTENSET_CCNTR_ENABLE_Msk | PMU_CNTENSET_CNT0_ENABLE_Msk | PMU_CNTENSET_CNT1_ENABLE_Msk | PMU_CNTENSET_CNT2_ENABLE_Msk | PMU_CNTENSET_CNT3_ENABLE_Msk 
-		| PMU_CNTENSET_CNT4_ENABLE_Msk | PMU_CNTENSET_CNT5_ENABLE_Msk | PMU_CNTENSET_CNT6_ENABLE_Msk | PMU_CNTENSET_CNT7_ENABLE_Msk | PMU_CNTENSET_CNT8_ENABLE_Msk);
+		| PMU_CNTENSET_CNT4_ENABLE_Msk | PMU_CNTENSET_CNT5_ENABLE_Msk | PMU_CNTENSET_CNT6_ENABLE_Msk | PMU_CNTENSET_CNT7_ENABLE_Msk);
 	// ARM_PMU_CNTR_Increment(PMU_SWINC_CNT4_Msk);
 }
 
@@ -126,4 +137,19 @@ void printCounterMVEInstructions() {
 	SEGGER_RTT_printf(0, "MVE Instructions: %d\n", ARM_PMU_Get_EVCNTR(2));
 	SEGGER_RTT_printf(0, "MVE Stall Cycles: %d\n", ARM_PMU_Get_EVCNTR(3));
 	// see https://kannwischer.eu/papers/2022_ntt-int-mul.pdf, p. 19
+}
+
+void printCounterDualIssue() {
+	uint32_t cycle_count = ARM_PMU_Get_CCNTR();
+	uint32_t inst_retired = ARM_PMU_Get_EVCNTR(1);
+	// float ipc = (float)inst_retired / cycle_count;
+	SEGGER_RTT_printf(0, "Cycle Count: %d\n", cycle_count);
+	// SEGGER_RTT_printf(0, "Cycle Count 2: %d\n", DWT->CYCCNT);
+	// SEGGER_RTT_printf(0, "Fold: %d\n", DWT->FOLDCNT);
+	SEGGER_RTT_printf(0, "Instruction Count: %d\n", inst_retired);
+
+
+	// SEGGER_RTT_printf(0, "IPC: %d/100\n", ipc * 100);
+	SEGGER_RTT_printf(0, "OP Complete: %d\n", ARM_PMU_Get_EVCNTR(2));
+	SEGGER_RTT_printf(0, "Stall Cycles: %d\n", ARM_PMU_Get_EVCNTR(3));
 }
