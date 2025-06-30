@@ -3,7 +3,6 @@
 #include "timing.hpp"
 #include "LPRTC.hpp"
 
-
 /**
  * Vorgehen: Initialisierung -> PowerOn -> Prescaler deaktiviern -> Counter abfragen x-mal -> PowerOff -> Uninitialize
 */
@@ -45,4 +44,14 @@ uint32_t RTC_GetValue() {
 void RTC_Sleep(uint32_t ms) {
     uint32_t start = RTC_GetTimepoint();
     while (RTC_GetTimepoint() - start < ms) { }
+}
+
+void enableCpuClock() {
+    ARM_PMU_Enable();
+    ARM_PMU_CYCCNT_Reset();
+	ARM_PMU_CNTR_Enable(PMU_CNTENSET_CCNTR_ENABLE_Msk);
+}
+
+void disableCpuClock() {
+	ARM_PMU_CNTR_Disable(PMU_CNTENSET_CCNTR_ENABLE_Msk);
 }

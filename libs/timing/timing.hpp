@@ -1,7 +1,18 @@
 #ifndef TIMING_HPP
 #define TIMING_HPP
 
+#include <ratio>
+#ifdef M55_HP
+#include "M55_HP.h"
+#define CLOCK_FREQUENCY 400000000
+#endif
+#ifdef M55_HE
+#include "M55_HE.h"
+#define CLOCK_FREQUENCY 160000000
+#endif
+
 #include <chrono>
+#include <cstdint>
 
 bool RTC_Initialize();
 
@@ -35,7 +46,7 @@ bool RTC_Uninitialize();
  * https://stackoverflow.com/questions/66262132/can-i-retarget-the-chrono-class-to-use-microcontroller-as-tick-generator?rq=3
 */
 class RTC_Clock {
-    public:
+    public:    
         using rep = uint32_t;
         using period = std::milli;
         using duration = std::chrono::duration<rep, period>;
@@ -43,6 +54,24 @@ class RTC_Clock {
         static constexpr bool is_steady = false;
         static time_point now() noexcept {
             return time_point{duration { RTC_GetTimepoint()}};
+        }
+};
+
+
+void enableCpuClock();
+void disableCpuClock();
+
+class CYCCNT_Clock {
+    public:
+        using rep = uint32_t;
+        using period = std::ratio<1, CLOCK_FREQUENCY>;
+        using duration = std::chrono::duration<rep, period>;
+        using time_point = std::chrono::time_point<CYCCNT_Clock, duration>;
+        static constexpr bool is_steady = false;
+        static time_point now() noexcept {
+            time_point time = time_point{duration{ARM_PMU_Get_CCNTR()}};
+            ARM_PMU_CYCCNT_Reset();
+            return time;
         }
 };
 
