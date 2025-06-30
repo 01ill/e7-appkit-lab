@@ -1,10 +1,5 @@
 .text
-
-.macro SIZE, label
-    .size label, (. - label)
-.endm
-
-.p2align 3
+.syntax unified
 
 .global generateFpStall
 .type generateFpStall, %function
@@ -110,3 +105,51 @@ cbzStart:
 
 cbzEnd:
     pop {pc}
+
+.global testDualIssue
+.type testDualIssue, %function
+
+testDualIssue:
+    push.w {lr} // make sure to not dual issue pop/push
+
+    .rept 200
+
+    /* Both 11 */
+    @ movs r4, #0
+    @ movs r5, #0
+
+    /* 11 First */
+    @ movs r4, #0
+    @ movs r5, r1
+
+    /* 01 First */
+    @ movs r5, r1
+    @ movs r4, #0
+
+    /* 32 Bit Second */
+    @ movs r5, #0
+    @ movs.w r4, #0
+
+    /* 32 Bit First */
+    @ movs.w r5, #0
+    @ movs r4, #0
+
+    /* 32 Bit Both */
+    @ movs.w r5, #0
+    @ movs.w r4, #0
+
+    /* CMN 16 Bit */
+    @ cmn r1, r2
+    @ cmn r3, r4
+
+    /* CMN 32 Bit */
+    @ cmn.w r1, r2
+    @ cmn.w r3, r4
+    adds r1, #4
+    cmp r1, #10
+    nop.w // make sure no other overlapping exists
+    nop.w // make sure no other overlapping exists
+
+    .endr
+
+    pop.w {pc} // make sure to not dual issue pop/push

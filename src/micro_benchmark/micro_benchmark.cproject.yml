@@ -6,6 +6,7 @@ project:
         - file: micro_benchmark.cpp
         - file: stream_asm.s
         - file: flops_asm.s
+        - file: throughput_asm.s
 
   define:
     - OPERATIONAL_INTENSITY: 100

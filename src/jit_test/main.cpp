@@ -7,6 +7,8 @@
 #include "dsp/matrix_functions.h"
 #include "generators/Gemm.hpp"
 #include "fault_handler.h"
+#include "generators/PeakPerformance.hpp"
+#include "generators/Throughput.hpp"
 #include "profiling.hpp"
 #include <RTE_Components.h>
 #include CMSIS_device_header
@@ -133,8 +135,8 @@ static float bigCRef[M*N];// __attribute__((used, section(".bss.array_region_sra
 #else
 static constexpr uint32_t arrayMaxSize = 240;
 static float bigA[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
-static float bigB[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
-static float bigC[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
+static float bigB[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
+static float bigC[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
 static float bigCRef[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
 #endif
 
@@ -304,7 +306,7 @@ void testSquareShapes() {
         k = i;
         uint32_t flops = 2 * m * k * n;
         uint32_t iterations = (peak * pow(10, 9)) / flops;
-        iterations = 30000;
+        // iterations = 30000;
         if (testArm) {
             time = testShapeArm(m, n, k, iterations);
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
@@ -313,7 +315,7 @@ void testSquareShapes() {
         }
 
         if (testJitter) {
-            time = testShapeGenerateTime(m, n, k, iterations, gemmGen);
+            time = testShape(m, n, k, iterations, gemmGen);
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
             bool correctResult = gflops > 0;
             if (!correctResult) gflops = -gflops;
@@ -538,11 +540,54 @@ void configureMPU() {
     ARM_MPU_Enable(MPU_CTRL_PRIVDEFENA_Msk);
 }
 
+void testPeakPerformance() {
+    uint32_t oi = 1;
+    uint32_t iterations = 100;
+    auto start = CYCCNT_Clock::now();
+	auto end = CYCCNT_Clock::now();
+	uint32_t flops = (oi * 8 * 4 * arrayMaxSize * 10000);
+	uint32_t time;
+	double gflops;
+    JIT::Generators::PeakPerformance gen;
+    JIT::Generators::PeakPerformance::Func genFunc = gen.generate(oi);
+    // genFunc = gen.bufferToFunc(globalBuffer);
+	start = CYCCNT_Clock::now();
+    for (uint32_t i = 0; i < iterations; i++) genFunc(arrayMaxSize * 10000);
+	end = CYCCNT_Clock::now();
+    time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+	gflops = static_cast<float>(flops) / (time/1000000.0f * pow(10, 9)) * iterations;
+	sprintf(PRINTF_OUT_STRING, "PeakJIT;%d;%f\r\n", time, gflops);
+	SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
+
+}
+void testThroughput() {
+    uint32_t iterations = 10000;
+    auto start = CYCCNT_Clock::now();
+	auto end = CYCCNT_Clock::now();
+	uint32_t flops = (4 * arrayMaxSize * arrayMaxSize);
+	uint32_t time;
+	double gflops;
+    JIT::Generators::Throughput gen;
+    JIT::Generators::Throughput::Func genFunc = gen.generate();
+    // genFunc = gen.bufferToFunc(globalBuffer);
+	start = CYCCNT_Clock::now();
+    for (uint32_t i = 0; i < iterations; i++) genFunc(bigA, arrayMaxSize*arrayMaxSize);
+	end = CYCCNT_Clock::now();
+    time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+	gflops = static_cast<float>(flops) / (time/1000000.0f * pow(10, 9)) * iterations;
+	sprintf(PRINTF_OUT_STRING, "PeakJIT;%d;%f\r\n", time, gflops);
+	SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
+}
+
+
 __NO_RETURN int main() {
  	fault_dump_enable(true);
 	SEGGER_RTT_ConfigUpBuffer(0, nullptr, nullptr, 0, SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
 	LPRTC::getInstance().enable();
-
+    enableCpuClock();
+    testThroughput();
+    // testPeakPerformance();
+    disableCpuClock();
     // configureMPU();
 
     // SCB_InvalidateICache();
@@ -605,7 +650,7 @@ __NO_RETURN int main() {
 */
 #endif
 #ifndef CONST_SIZE
-    testSquareShapes();
+    // testSquareShapes();
     // testGrowingK();
     // testGrowingM();
     // testGrowingN();
