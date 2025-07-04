@@ -71,22 +71,6 @@ class JIT::Generators::Gemm {
             USE_K_K2_CROW1_REGISTER = USE_K_LEN_REGISTER | USE_K_LEN2_REGISTER | USE_CROW1_REGISTER,
             USE_K_K2_N_LEN_REGISTER = USE_K_LEN_REGISTER | USE_K_LEN2_REGISTER | USE_N_LEN_REGISTER,
             USE_K_K2_A_REGISTER = USE_K_LEN_REGISTER | USE_K_LEN2_REGISTER | USE_A_ADD_REGISTER,
-
-            /*
-            Can be used when
-            - C can be done (at least partly) with immediates (M small enough <= 127)
-
-            Shoud be used when
-            - CMP can't be done with immediates because N is too large
-            */
-            /*
-            Can be used when
-            - C can be done (at least partly) with immediates (M small enough <= 127)
-            - CMP for n can be done with immediate
-
-            Shoud be used when
-            - A cant be loaded because M is too big (>= 127)
-            */
         };
         struct MicroKernelConfiguration {
             RegisterImmediateStrategy registerStrategy;
@@ -106,17 +90,18 @@ class JIT::Generators::Gemm {
         void emitLoadStoreC46(Instructions::VectorRegister targetReg, uint32_t ldc, bool store = false);
     
     public:
+        Gemm(Instructions::Instruction16 * globalBuffer, uint32_t bufferSize) : backend(globalBuffer, bufferSize) {}
         using Func = void (*) (float const *, float const *, float *);
         void (*generate(uint32_t m, uint32_t k, uint32_t n, uint32_t lda, uint32_t ldb, uint32_t ldc))(float const * __restrict__ a, float const * __restrict__ b, float * __restrict__ c);
-        Func thumbAddressToFunc(uintptr_t thumbAddress) {
-            __asm("dsb");
-            __asm("isb");
-            return reinterpret_cast<JIT::Generators::Gemm::Func>(thumbAddress);
-        }
-        Func bufferToFunc(Instructions::Instruction16 * buffer) {
-            backend.copyToBuffer(buffer);
-            return thumbAddressToFunc(backend.getBufferThumbAddress(buffer));
-        }
+        // Func thumbAddressToFunc(uintptr_t thumbAddress) {
+        //     __asm("dsb");
+        //     __asm("isb");
+        //     return reinterpret_cast<JIT::Generators::Gemm::Func>(thumbAddress);
+        // }
+        // Func bufferToFunc(Instructions::Instruction16 * buffer) {
+        //     backend.copyToBuffer(buffer);
+        //     return thumbAddressToFunc(backend.getBufferThumbAddress(buffer));
+        // }
 };
 
 #endif // JIT_GENERATORS_GEMM_HPP

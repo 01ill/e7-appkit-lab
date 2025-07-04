@@ -63,14 +63,6 @@ void addDot8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(const floa
     bp1 = &b[ldb];
     bp2 = &b[2*ldb];
 
-    // Vektorregister initialisieren mit vdup
-    // c00_vreg = vdupq_n_f32(0.0f);
-    // c01_vreg = vdupq_n_f32(0.0f);
-    // c10_vreg = vdupq_n_f32(0.0f);
-    // c11_vreg = vdupq_n_f32(0.0f);
-    // c20_vreg = vdupq_n_f32(0.0f);
-    // c21_vreg = vdupq_n_f32(0.0f);
-
     c00_vreg = vld1q_f32(&c[0]);
     c01_vreg = vld1q_f32(&c[4]);
     c10_vreg = vld1q_f32(&c[ldc]);
@@ -80,15 +72,13 @@ void addDot8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(const floa
 
     for (uint32_t p = 0; p < k; p++) {
         a0p_vreg = vld1q_f32(&a[p*lda]);
-        a1p_vreg = vld1q_f32(&a[p*lda+4]);
-
         bp0_vreg = vdupq_n_f32(*bp0++);
-        bp1_vreg = vdupq_n_f32(*bp1++);
-        bp2_vreg = vdupq_n_f32(*bp2++);
-
         c00_vreg = vfmaq_f32(c00_vreg, a0p_vreg, bp0_vreg);
+        a1p_vreg = vld1q_f32(&a[p*lda+4]);
         c01_vreg = vfmaq_f32(c01_vreg, a1p_vreg, bp0_vreg);
+        bp1_vreg = vdupq_n_f32(*bp1++);
         c10_vreg = vfmaq_f32(c10_vreg, a0p_vreg, bp1_vreg);
+        bp2_vreg = vdupq_n_f32(*bp2++);
         c11_vreg = vfmaq_f32(c11_vreg, a1p_vreg, bp1_vreg);
         c20_vreg = vfmaq_f32(c20_vreg, a0p_vreg, bp2_vreg);
         c21_vreg = vfmaq_f32(c21_vreg, a1p_vreg, bp2_vreg);
@@ -112,6 +102,107 @@ void gemm_intrinsics_8x3(const float * __restrict__ a, const float * __restrict_
     }
 }
 
+void addDot4x6_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(const float * __restrict__ a, const float * __restrict__ b, float * __restrict__ c, const uint32_t n, const uint32_t k, const uint32_t m, const uint32_t lda, const uint32_t ldb, const uint32_t ldc) {
+    float32x4_t c0_vreg, c1_vreg, c2_vreg, c3_vreg, c4_vreg, c5_vreg, c6_vreg, a0p_vreg, bp0_vreg, bp1_vreg, bp2_vreg, bp3_vreg, bp4_vreg, bp5_vreg, bp6_vreg;
+    const float32_t *bp0, *bp1, *bp2, *bp3, *bp4, *bp5, *bp6;
+
+    bp0 = &b[0];
+    bp1 = &b[ldb];
+    bp2 = &b[2*ldb];
+    bp3 = &b[3*ldb];
+    bp4 = &b[4*ldb];
+    bp5 = &b[5*ldb];
+    // bp6 = &b[6*ldb];
+
+    c0_vreg = vld1q_f32(&c[0]);
+    c1_vreg = vld1q_f32(&c[ldc]);
+    c2_vreg = vld1q_f32(&c[2 * ldc]);
+    c3_vreg = vld1q_f32(&c[3 * ldc]);
+    c4_vreg = vld1q_f32(&c[4 * ldc]);
+    c5_vreg = vld1q_f32(&c[5 * ldc]);
+    // c6_vreg = vld1q_f32(&c[6 * ldc]);
+
+    for (uint32_t p = 0; p < k; p++) {
+        a0p_vreg = vld1q_f32(&a[p*lda]);
+
+        bp0_vreg = vdupq_n_f32(*bp0++);
+        bp1_vreg = vdupq_n_f32(*bp1++);
+        bp2_vreg = vdupq_n_f32(*bp2++);
+        bp3_vreg = vdupq_n_f32(*bp3++);
+        bp4_vreg = vdupq_n_f32(*bp4++);
+        bp5_vreg = vdupq_n_f32(*bp5++);
+        // bp6_vreg = vdupq_n_f32(*bp6++);
+
+
+        c0_vreg = vfmaq_f32(c0_vreg, a0p_vreg, bp0_vreg);
+        c1_vreg = vfmaq_f32(c1_vreg, a0p_vreg, bp1_vreg);
+        c2_vreg = vfmaq_f32(c2_vreg, a0p_vreg, bp2_vreg);
+        c3_vreg = vfmaq_f32(c3_vreg, a0p_vreg, bp3_vreg);
+        c4_vreg = vfmaq_f32(c4_vreg, a0p_vreg, bp4_vreg);
+        c5_vreg = vfmaq_f32(c5_vreg, a0p_vreg, bp5_vreg);
+        // c6_vreg = vfmaq_f32(c6_vreg, a0p_vreg, bp6_vreg);
+    }
+
+    vst1q_f32(&c[0], c0_vreg);
+    vst1q_f32(&c[ldc], c1_vreg);
+    vst1q_f32(&c[2*ldc], c2_vreg);
+    vst1q_f32(&c[3*ldc], c3_vreg);
+    vst1q_f32(&c[4*ldc], c4_vreg);
+    vst1q_f32(&c[5*ldc], c5_vreg);
+    // vst1q_f32(&c[6*ldc], c6_vreg);
+}
+
+void gemm_intrinsics_4x6(const float * __restrict__ a, const float * __restrict__ b, float * __restrict__ c, const uint32_t n, const uint32_t k, const uint32_t m, const uint32_t lda, const uint32_t ldb, const uint32_t ldc) {
+    for (uint32_t j = 0; j < n; j += 6) { // j = n
+        for (uint32_t i = 0; i < m; i += 4) { // i = m
+            addDot4x6_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(&a[i], &b[j * ldb], &c[j * ldc + i], n, k, m, lda, ldb, ldc);
+        }
+    }
+}
+
+void addDot16x1_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(const float * __restrict__ a, const float * __restrict__ b, float * __restrict__ c, const uint32_t n, const uint32_t k, const uint32_t m, const uint32_t lda, const uint32_t ldb, const uint32_t ldc) {
+    float32x4_t c0_vreg, c1_vreg, c2_vreg, c3_vreg, a0p_vreg, a1p_vreg, a2p_vreg, a3p_vreg, bp0_vreg;
+    const float32_t *bp0;
+
+    bp0 = &b[0];
+
+    c0_vreg = vld1q_f32(&c[0]);
+    c1_vreg = vld1q_f32(&c[4]);
+    c2_vreg = vld1q_f32(&c[8]);
+    c3_vreg = vld1q_f32(&c[12]);
+
+    for (uint32_t p = 0; p < k; p++) {
+        a0p_vreg = vld1q_f32(&a[p*lda]);
+        a1p_vreg = vld1q_f32(&a[p*lda + 4]);
+        a2p_vreg = vld1q_f32(&a[p*lda + 8]);
+        a3p_vreg = vld1q_f32(&a[p*lda + 12]);
+
+        bp0_vreg = vdupq_n_f32(*bp0++);
+
+
+        c0_vreg = vfmaq_f32(c0_vreg, a0p_vreg, bp0_vreg);
+        c1_vreg = vfmaq_f32(c1_vreg, a1p_vreg, bp0_vreg);
+        c2_vreg = vfmaq_f32(c2_vreg, a2p_vreg, bp0_vreg);
+        c3_vreg = vfmaq_f32(c3_vreg, a3p_vreg, bp0_vreg);
+    }
+
+    vst1q_f32(&c[0], c0_vreg);
+    vst1q_f32(&c[4], c1_vreg);
+    vst1q_f32(&c[8], c2_vreg);
+    vst1q_f32(&c[12], c3_vreg);
+    // vst1q_f32(&c[6*ldc], c6_vreg);
+}
+
+void gemm_intrinsics_16x1(const float * __restrict__ a, const float * __restrict__ b, float * __restrict__ c, const uint32_t n, const uint32_t k, const uint32_t m, const uint32_t lda, const uint32_t ldb, const uint32_t ldc) {
+    for (uint32_t j = 0; j < n; j += 1) { // j = n
+        for (uint32_t i = 0; i < m; i += 16) { // i = m
+            addDot16x1_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(&a[i], &b[j * ldb], &c[j * ldc + i], n, k, m, lda, ldb, ldc);
+        }
+    }
+}
+
+
+
 extern "C" {
     void gemm_20x24_jit(float const * __restrict__ a, float const * __restrict__ b, float * __restrict__ c);
     void gemm_20x24_tuned(float const * __restrict__ a, float const * __restrict__ b, float * __restrict__ c);
@@ -123,11 +214,12 @@ static float a[peakCount];// __attribute__((used, section(".bss.array_region_sra
 static float b[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 static float c[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 */
-// #define CONST_SIZE
+#define CONST_SIZE
 #ifdef CONST_SIZE
-static const uint32_t M = 24;
-static const uint32_t K = 24;
-static const uint32_t N = 24;
+static constexpr uint32_t arrayMaxSize = 48;
+static const uint32_t M = 48;
+static const uint32_t K = 48;
+static const uint32_t N = 48;
 static float bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
@@ -205,19 +297,16 @@ int32_t testShapeGenerateTime(uint32_t m, uint32_t n, uint32_t k, uint32_t itera
     auto start = RTC_Clock::now();
     for (uint32_t it = 0; it < iterations; it++) {
         gemmFunc = generator.generate(m, k, n, m, k, m);
-        gemmFunc = generator.bufferToFunc(globalBuffer);
     }
     auto end = RTC_Clock::now();
     gemmFunc(bigA, bigB, bigC);
     auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     return time; // return negative value if test not succesful
-
 }
 
 int32_t testShape(uint32_t m, uint32_t n, uint32_t k, uint32_t iterations, JIT::Generators::Gemm & generator) {
     auto gemmFunc = generator.generate(m, k, n, m, k, m);
     // auto gemmFunc = generator.generate(mBlocking, kBlocking, n, m, k, m);
-    gemmFunc = generator.bufferToFunc(globalBuffer);
 
     initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
     // setupProfilingMemory();
@@ -253,14 +342,14 @@ int32_t testShapeReference(uint32_t m, uint32_t n, uint32_t k, uint32_t iteratio
 
 int32_t testShapeIntrinsics(uint32_t m, uint32_t n, uint32_t k, uint32_t iterations) {
     initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
-    gemm_intrinsics_8x3(bigA, bigB, bigC, n, k, m, m, k, m);
+    gemm_intrinsics_16x1(bigA, bigB, bigC, n, k, m, m, k, m);
     gemm_reference_column_major(bigA, bigB, bigCRef, n, k, m, m, k, m);
     int32_t compareResult = compare(bigC, bigCRef, m*n);
 
     initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
     auto start = RTC_Clock::now();
     for (uint32_t j = 0; j < iterations; j++) {
-        gemm_intrinsics_8x3(bigA, bigB, bigCRef, n, k, m, m, k, m);
+        gemm_intrinsics_16x1(bigA, bigB, bigCRef, n, k, m, m, k, m);
     }
     auto end = RTC_Clock::now();
     auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -294,7 +383,7 @@ void testSquareShapes() {
     int32_t time;
     double gflops;
     uint32_t m, n, k;
-    JIT::Generators::Gemm gemmGen;
+    JIT::Generators::Gemm gemmGen(globalBuffer, 3072);
     SEGGER_RTT_printf(0, "--- START TEST SQUARE SHAPES ---\n");
     SEGGER_RTT_printf(0, "Test;M;K;N;Type;GFLOPS;Time;Iterations;Correct\n");
     for (uint32_t i = 2; i < 240; i++) {
@@ -347,7 +436,7 @@ void testGrowingK() {
     int32_t time;
     double gflops;
     uint32_t m = 24, n = 24, k;
-    JIT::Generators::Gemm gemmGen;
+    JIT::Generators::Gemm gemmGen(globalBuffer, 3072);
     SEGGER_RTT_printf(0, "--- START TEST GROWING K ---\n");
     SEGGER_RTT_printf(0, "Test;M;K;N;Type;GFLOPS;Time;Iterations;Correct\n");
     for (uint32_t i = 2; i < 240; i++) {
@@ -397,7 +486,7 @@ void testGrowingM() {
     int32_t time;
     double gflops;
     uint32_t m = 1, n = 24, k = 24;
-    JIT::Generators::Gemm gemmGen;
+    JIT::Generators::Gemm gemmGen(globalBuffer, 3072);
     SEGGER_RTT_printf(0, "--- START TEST GROWING M ---\n");
     SEGGER_RTT_printf(0, "Test;M;K;N;Type;GFLOPS;Time;Iterations;Correct\n");
     for (uint32_t i = 2; i < 240; i++) {
@@ -447,7 +536,7 @@ void testGrowingN() {
     int32_t time;
     double gflops;
     uint32_t m = 24, n = 1, k = 24;
-    JIT::Generators::Gemm gemmGen;
+    JIT::Generators::Gemm gemmGen(globalBuffer, 3072);
     SEGGER_RTT_printf(0, "--- START TEST GROWING N ---\n");
     SEGGER_RTT_printf(0, "Test;M;K;N;Type;GFLOPS;Time;Iterations;Correct\n");
     for (uint32_t i = 2; i < 240; i++) {
@@ -495,7 +584,7 @@ void testGrowingN() {
 
 void constSizeTest(uint32_t m, uint32_t n, uint32_t k) {
     initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
-    JIT::Generators::Gemm gemmGen;
+    JIT::Generators::Gemm gemmGen(globalBuffer, 3072);
     uint32_t repeats = 5;
     uint32_t flops = 2 * m * k * n;
     uint32_t iterations = (peak * pow(10, 9)) / flops;
@@ -548,7 +637,7 @@ void testPeakPerformance() {
 	uint32_t flops = (oi * 8 * 4 * arrayMaxSize * 10000);
 	uint32_t time;
 	double gflops;
-    JIT::Generators::PeakPerformance gen;
+    JIT::Generators::PeakPerformance gen(globalBuffer, 3072);
     JIT::Generators::PeakPerformance::Func genFunc = gen.generate(oi);
     // genFunc = gen.bufferToFunc(globalBuffer);
 	start = CYCCNT_Clock::now();
@@ -567,7 +656,7 @@ void testThroughput() {
 	uint32_t flops = (4 * arrayMaxSize * arrayMaxSize);
 	uint32_t time;
 	double gflops;
-    JIT::Generators::Throughput gen;
+    JIT::Generators::Throughput gen(globalBuffer, 3072);
     JIT::Generators::Throughput::Func genFunc = gen.generate();
     // genFunc = gen.bufferToFunc(globalBuffer);
 	start = CYCCNT_Clock::now();
@@ -584,10 +673,10 @@ __NO_RETURN int main() {
  	fault_dump_enable(true);
 	SEGGER_RTT_ConfigUpBuffer(0, nullptr, nullptr, 0, SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
 	LPRTC::getInstance().enable();
-    enableCpuClock();
-    testThroughput();
+    // enableCpuClock();
+    // testThroughput();
     // testPeakPerformance();
-    disableCpuClock();
+    // disableCpuClock();
     // configureMPU();
 
     // SCB_InvalidateICache();

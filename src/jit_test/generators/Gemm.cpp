@@ -148,6 +148,7 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         return;
     }
 
+    /* Path for 4x4-4x6 microkernel */
     if (m <= 4) {
         if (configuration.registerStrategy & USE_K_LEN2_REGISTER) {
             uint32_t imm = 3 * ldb * DT_SIZE;
@@ -342,6 +343,7 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         } else {
             backend.addInstruction(Instructions::Arithmetic::subImmediate32(C_Pointer, n * ldc * DT_SIZE));
         }
+    /* path for 8x3 microkernel */
     } else if (m <= 8) {
         if (configuration.registerStrategy & USE_CROW1_REGISTER) {
             uint32_t cRowAdd = DT_SIZE * ldc;
@@ -520,6 +522,7 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
             backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(C20_Register, A0_Register, B2_Register));
             emitLoadStoreC(configuration, C20_Register, ldc, true);
         }
+    /* path for 16x1 microkernel */
     } else {
         // initialize accumulators and calculate first iteration of k
 
@@ -547,18 +550,19 @@ void JIT::Generators::Gemm::generateMicroKernel(uint32_t m, uint32_t k, uint32_t
         Instructions::Instruction16 * kLoopStart;
         if (k > 3) backend.addInstruction(Instructions::Base::dls(DLS_COUNT_REGISTER));
         if (k >= 3) {
+            if (maxSkippedAdds >= 1) kLoopStart = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
+            if (maxSkippedAdds >= 2) backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B1_Register, B_Pointer, DT_SIZE, false, true));
+            if (maxSkippedAdds >= 3) backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B2_Register, B_Pointer, DT_SIZE, false, true));
             for (uint32_t i = 0; i < maxSkippedAdds; i++) {
-                if (i == 0) {
-                    kLoopStart = backend.addBranchTargetInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
-                } else {
-                    backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
-                }
+                if (i > 2) backend.addInstruction(Instructions::DataProcessing::ldrImmediate32(B0_Register, B_Pointer, DT_SIZE, false, true));
                 for (uint32_t j = 0; j < m; j += 4) {
                     Instructions::VectorRegister cReg = static_cast<Instructions::VectorRegister>(j / 4);
                     Instructions::VectorRegister aReg = static_cast<Instructions::VectorRegister>(j / 4 + 4);
 
                     backend.addInstruction(Instructions::Vector::vldrw(aReg, A_Pointer, i * lda * DT_SIZE + j * DT_SIZE));
-                    backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(cReg, aReg, B0_Register));
+                    if (i == 0 || i > 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(cReg, aReg, B0_Register));
+                    if (i == 1) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(cReg, aReg, B1_Register));
+                    if (i == 2) backend.addInstruction(Instructions::Vector::vfmaVectorByScalarPlusVector(cReg, aReg, B2_Register));
                 }
             }
             backend.addInstruction(Instructions::Arithmetic::addImmediate32(A_Pointer, maxSkippedAdds * lda * DT_SIZE));
@@ -681,7 +685,7 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
     // - 4x4-4x6
     if ((m <= 16 && n == 1) || (m <= 8 && n <= 3) || (m <= 4 && n <= 6)) {
         generateMicroKernel(m, k, n, lda, ldb, ldc, configuration);
-    } else if (n <= DEFAULT_MICROKERNEL_N) { // dont need j=n loop (only i loop) and use wide microkernel // TODO: use DEFAULT_MICROKERNEL_N and then select widest possible microkernel
+    } else if (n <= DEFAULT_MICROKERNEL_N) { // dont need j=n loop (only i loop) and use wide microkernel
         backend.addInstruction(JIT::Instructions::DataProcessing::movRegister32(A_Base_Pointer, A_Pointer)); // save a pointer
         backend.addInstruction(Instructions::DataProcessing::movImmediate32(I_Loop_Register, 0));
         Instructions::Instruction16 * iLoopStartjTail = backend.addBranchTargetInstruction(Instructions::Base::nop32());

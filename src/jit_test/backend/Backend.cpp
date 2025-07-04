@@ -1,5 +1,7 @@
 #include "Backend.hpp"
 #include "instructions/Base.hpp"
+#include "instructions/DataProcessing.hpp"
+#include "instructions/Vector.hpp"
 #include <cstdint>
 
 using namespace JIT::Instructions;
@@ -36,9 +38,9 @@ Instruction16 * JIT::Backend::addBranchPlaceholder(bool shortBranch) {
 
 void JIT::Backend::addLowOverheadBranchFromCurrentPosition(Instruction16 * loopStart, bool letp) {
     if (letp) {
-        addInstruction(Base::letp(getBranchOffset(loopStart)-4));
+        addInstruction(Base::letp(getBranchOffset(loopStart) - 4));
     } else {
-        addInstruction(Base::le(getBranchOffset(loopStart)-4));
+        addInstruction(Base::le(getBranchOffset(loopStart) - 4));
     }
 }
 
@@ -88,6 +90,29 @@ void JIT::Backend::setForwardsBranch(Instruction16 * branchInstruction, Instruct
 int16_t JIT::Backend::getBranchOffset(Instruction16 * instrStart) {
     return (instrStart - &instructions[instructionCount]) * 2; // jede Instruktion sind 16 Bit = 2 Byte
     //return &instructions[instructionCount] - instrStart;
+}
+
+void JIT::Backend::predicateNextInstructions(uint32_t countInstructions) {
+    maxPredicateInstructions = countInstructions;
+    predicateCounter = 0;
+    addInstruction(Vector::vpst(countInstructions));
+}
+
+void JIT::Backend::insertPredicatedInstruction(Instructions::Instruction32 instr) {
+    if (maxPredicateInstructions == -1) { // no predication used
+        addInstruction(instr);
+    } else if (predicateCounter >= maxPredicateInstructions) {
+        Base::printValidationError("insertPredicatedInstruction: all predicated spots have been used - inserting nop");
+        addInstruction(Base::nop32());
+    } else {
+        predicateCounter++;
+        addInstruction(instr);
+    }
+}
+
+void JIT::Backend::clearPredication() {
+    maxPredicateInstructions = -1;
+    predicateCounter = -1;
 }
 
 Instruction16 * JIT::Backend::getInstructions() {

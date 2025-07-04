@@ -16,7 +16,7 @@ void (*JIT::Generators::Triad::generate(uint32_t count)) (float const * a, float
     backend.addInstruction(Instructions::DataProcessing::movImmediate32(Instructions::R4, count));
 
     // dlstp
-    Instructions::Instruction16 * dlstpStart = backend.addBranchTargetInstruction(Instructions::Base::dlstp(Instructions::Register::R4, Instructions::Size32)); // todo
+    Instructions::Instruction16 * dlstpStart = backend.addBranchTargetInstruction(Instructions::Base::dlstp(Instructions::Register::R4, Instructions::Size32));
     // vldrw.f32 q0, [r0], #16
     backend.addInstruction(Instructions::Vector::vldrw(Instructions::Q0, Instructions::R0, 4, 0, 1));
     // vldrw.f32 q0, [r1], #16

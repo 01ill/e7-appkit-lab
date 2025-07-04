@@ -15,6 +15,7 @@ class JIT::Generators::Triad {
         Backend backend;
 
     public:
+        Triad(Instructions::Instruction16 * globalBuffer, uint32_t bufferSize) : backend(globalBuffer, bufferSize) {}
         using Func = void (*) (float const *, float const *, float *, float const);
         void (*generate(uint32_t count))(float const *a, float const *b, float *c, float const);
 };
