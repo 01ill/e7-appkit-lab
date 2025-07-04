@@ -225,7 +225,7 @@ float32_t gemm_cm_dot_unroll4x6_unroll_fused_accumulate_pointers_v2_rowfuse_intr
     return c[0];
 }
 
-void addDot8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(uint32_t k, const float32_t * __restrict__ a, const float32_t * __restrict__ b, float32_t * __restrict__ c, uint32_t len) {
+void addDot8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(const float * __restrict__ a, const float * __restrict__ b, float * __restrict__ c, const uint32_t n, const uint32_t k, const uint32_t m, const uint32_t lda, const uint32_t ldb, const uint32_t ldc) {
     // Wir wollen Single Precision, damit die Register auch genutzt werden können
     // So passen 4 Float32 Werte rein, statt nur 2 Double
     // Also werden 4 Reihen (alle) gefused
@@ -234,21 +234,27 @@ void addDot8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(uint32_t k
     const float32_t *bp0, *bp1, *bp2;
 
     bp0 = &b[0];
-    bp1 = &b[len];
-    bp2 = &b[2*len];
+    bp1 = &b[ldb];
+    bp2 = &b[2*ldb];
 
     // Vektorregister initialisieren mit vdup
-    c00_vreg = vdupq_n_f32(0.0f);
-    c01_vreg = vdupq_n_f32(0.0f);
-    c10_vreg = vdupq_n_f32(0.0f);
-    c11_vreg = vdupq_n_f32(0.0f);
-    c20_vreg = vdupq_n_f32(0.0f);
-    c21_vreg = vdupq_n_f32(0.0f);
+    // c00_vreg = vdupq_n_f32(0.0f);
+    // c01_vreg = vdupq_n_f32(0.0f);
+    // c10_vreg = vdupq_n_f32(0.0f);
+    // c11_vreg = vdupq_n_f32(0.0f);
+    // c20_vreg = vdupq_n_f32(0.0f);
+    // c21_vreg = vdupq_n_f32(0.0f);
 
+    c00_vreg = vld1q_f32(&c[0]);
+    c01_vreg = vld1q_f32(&c[4]);
+    c10_vreg = vld1q_f32(&c[ldc]);
+    c11_vreg = vld1q_f32(&c[ldc + 4]);
+    c20_vreg = vld1q_f32(&c[2 * ldc]);
+    c21_vreg = vld1q_f32(&c[2 * ldc + 4]);
 
     for (uint32_t p = 0; p < k; p++) {
-        a0p_vreg = vld1q_f32(&a[p*len]);
-        a1p_vreg = vld1q_f32(&a[p*len+4]);
+        a0p_vreg = vld1q_f32(&a[p*lda]);
+        a1p_vreg = vld1q_f32(&a[p*lda+4]);
 
         bp0_vreg = vdupq_n_f32(*bp0++);
         bp1_vreg = vdupq_n_f32(*bp1++);
@@ -265,42 +271,41 @@ void addDot8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(uint32_t k
     vst1q_f32(&c[0], c00_vreg);
     vst1q_f32(&c[4], c01_vreg);
 
-    vst1q_f32(&c[len], c10_vreg);
-    vst1q_f32(&c[len+4], c11_vreg);
+    vst1q_f32(&c[ldc], c10_vreg);
+    vst1q_f32(&c[ldc+4], c11_vreg);
 
-    vst1q_f32(&c[2*len], c20_vreg);
-    vst1q_f32(&c[2*len+4], c21_vreg);
+    vst1q_f32(&c[2*ldc], c20_vreg);
+    vst1q_f32(&c[2*ldc+4], c21_vreg);
 }
 
-float32_t gemm_cm_dot_unroll8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(const float32_t * __restrict__ a, const float32_t * __restrict__ b, float32_t * __restrict__ c, const uint32_t len) {
-    for (uint32_t j = 0; j < len; j += 3) { // j = n
-        for (uint32_t i = 0; i < len; i += 8) { // i = m
-            addDot8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(len, &a[i], &b[j * len], &c[j * len + i], len);
+void gemm_intrinsics_8x3(const float * __restrict__ a, const float * __restrict__ b, float * __restrict__ c, const uint32_t n, const uint32_t k, const uint32_t m, const uint32_t lda, const uint32_t ldb, const uint32_t ldc) {
+    for (uint32_t j = 0; j < n; j += 3) { // j = n
+        for (uint32_t i = 0; i < m; i += 8) { // i = m
+            addDot8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(&a[i], &b[j * ldb], &c[j * ldc + i], n, k, m, lda, ldb, ldc);
         }
     }
-    return c[0];
 }
 
-float32_t inner_kernel_8x3(uint32_t m, uint32_t n, uint32_t k, const float32_t * __restrict__ a, const float32_t * __restrict__ b,  float32_t * __restrict__ c, uint32_t len) {
+float32_t inner_kernel_8x3(const float * __restrict__ a, const float * __restrict__ b, float * __restrict__ c, const uint32_t n, const uint32_t k, const uint32_t m, const uint32_t lda, const uint32_t ldb, const uint32_t ldc) {
     for (uint32_t j = 0; j < n; j += 3) {
         for (uint32_t i = 0; i < m; i += 8) {
-            addDot8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(k, &a[i], &b[j * len], &c[j * len + i], len);
+            addDot8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics(&a[i], &b[j * ldb], &c[j * ldc + i], n, k, m, lda, ldb, ldc);
         }
     }
     return c[0];
 }
 
 
-float32_t gemm_cm_dot_unroll8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics_blocked(const float32_t * __restrict__ a, const float32_t * __restrict__ b, float32_t * __restrict__ c, const uint32_t len) {
-    for (uint32_t p = 0; p < len; p += kc) {
-        uint32_t pb = std::min(len-p, kc);
-        for (uint32_t i = 0; i < len; i += mc) {
-            uint32_t ib = std::min(len - i, mc);
-            inner_kernel_8x3(ib, len, pb, &a[p*len + i], &b[p], &c[i], len);
-        }
-    }
-    return c[0];
-}
+// float32_t gemm_cm_dot_unroll8x3_unroll_fused_accumulate_pointers_v2_rowfuse_intrinsics_blocked(const float * __restrict__ a, const float * __restrict__ b, float * __restrict__ c, const uint32_t n, const uint32_t k, const uint32_t m, const uint32_t lda, const uint32_t ldb, const uint32_t ldc) {
+//     for (uint32_t p = 0; p < len; p += kc) {
+//         uint32_t pb = std::min(len-p, kc);
+//         for (uint32_t i = 0; i < len; i += mc) {
+//             uint32_t ib = std::min(len - i, mc);
+//             inner_kernel_8x3(ib, len, pb, &a[p*len + i], &b[p], &c[i], len);
+//         }
+//     }
+//     return c[0];
+// }
 
 
 float32_t frame_gemm_8x3(const float32_t * __restrict__ a, const float32_t * __restrict__ b, float32_t * __restrict__ c, const uint32_t len) {
