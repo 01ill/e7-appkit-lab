@@ -15,11 +15,11 @@ constexpr float peak = 1.6;
 static char PRINTF_OUT_STRING[256] __attribute__((used, section(".bss.array_region_sram0")));
 
 
-void initMatrices(float * a, float * b, float * c, float * cref, const uint32_t m, const uint32_t n, const uint32_t k, bool zeroC) {
-    for (uint32_t i = 0; i < m*k; i++) a[i] = i;
-    for (uint32_t i = 0; i < k*n; i++) b[i] = i + 1;
-    for (uint32_t i = 0; i < m*n; i++) c[i] = zeroC ? 0 : i + 2;
-	for (uint32_t i = 0; i < m*n; i++) cref[i] = zeroC ? 0 : i + 2;
+void initMatrices(float * a, float * b, float * c, float * cref, const uint32_t m, const uint32_t n, const uint32_t k, bool zeroC, bool useFloat) {
+    for (uint32_t i = 0; i < m*k; i++) a[i] = i + (useFloat ? (i / (i+1.0f)) : 0);
+    for (uint32_t i = 0; i < k*n; i++) b[i] = i + 1 + (useFloat ? (i / (i - 100.0f)) : 0);
+    for (uint32_t i = 0; i < m*n; i++) c[i] = zeroC ? 0 : i + 2 + (useFloat ? 0.124974f : 0);
+	for (uint32_t i = 0; i < m*n; i++) cref[i] = zeroC ? 0 : i + 2 + (useFloat ? 0.124974f : 0);
 }
 
 int32_t testShapeGenerateTime(
@@ -54,16 +54,22 @@ int32_t testShape(
 
     gemm_reference_column_major(bigA, bigB, bigCRef, n, k, m, m, k, m);
     int32_t compareResult = compare(bigC, bigCRef, m*n);
-    initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
-    auto start = RTC_Clock::now();
-    for (uint32_t it = 0; it < iterations; it++) {
-        // jitBlocked_mk(bigA, bigB, bigC, m, n, k, gemmFunc);
-        gemmFunc(bigA, bigB, bigC);
+    if (iterations == 0) {
+        if (compareResult != -1) SEGGER_RTT_printf(0, "Fail at %d;", compareResult);
+        return compareResult != -1 ? -compareResult : 1; // negative value == fail
+    } else {
+        initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
+        auto start = RTC_Clock::now();
+        for (uint32_t it = 0; it < iterations; it++) {
+            // jitBlocked_mk(bigA, bigB, bigC, m, n, k, gemmFunc);
+            gemmFunc(bigA, bigB, bigC);
+        }
+        auto end = RTC_Clock::now();
+        auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+        if (time == 0) time = 1;
+        if (compareResult != -1) SEGGER_RTT_printf(0, "Fail at %d;", compareResult);
+        return compareResult != -1 ? -time : time; // return negative value if test not succesful
     }
-    auto end = RTC_Clock::now();
-    auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    if (compareResult != -1) SEGGER_RTT_printf(0, "Fail at %d;", compareResult);
-    return compareResult != -1 ? -time : time; // return negative value if test not succesful
 }
 
 int32_t testShapeReference(
@@ -341,19 +347,20 @@ void testGrowingN(
 void constSizeTest(
     float * bigA, float * bigB, float * bigC, float * bigCRef,
     JIT::Instructions::Instruction16 * globalBuffer,
-    uint32_t m, uint32_t n, uint32_t k) {
+    uint32_t m, uint32_t n, uint32_t k, bool validate) {
 
     initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
     JIT::Generators::Gemm gemmGen(globalBuffer, 3072);
     uint32_t repeats = 5;
     uint32_t flops = 2 * m * k * n;
     uint32_t iterations = (peak * pow(10, 9)) / flops;
+    if (validate) iterations = 0;
     int32_t time;
     double gflops;
     for (uint32_t i = 0; i < repeats; i++) {
         time = testShape(bigA, bigB, bigC, bigCRef, m, n, k, iterations, gemmGen);
-        gflops = (flops / (time/1000.0f * pow(10, 9))) * iterations;
-        sprintf(PRINTF_OUT_STRING, "Unroll5;%d;%d;%d;TillJIT;%f;%d;%d;1\r\n", m, k, n, gflops, time, iterations);
+        gflops = (static_cast<float>(flops) / (time * 1000000.0f)) * iterations;
+        sprintf(PRINTF_OUT_STRING, "Unroll5;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, gflops > 0);
         SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
     }
 }
@@ -362,7 +369,7 @@ void testAllSizes(
     float * bigA, float * bigB, float * bigC, float * bigCRef,
     JIT::Instructions::Instruction16 * globalBuffer,
     bool testArm, bool testJitter, bool testIntrinsics, bool testReference,
-    uint32_t start, uint32_t end) {
+    uint32_t start, uint32_t end, bool validate) {
     int32_t time;
     double gflops;
     JIT::Generators::Gemm gemmGen(globalBuffer, 3072);
@@ -377,8 +384,7 @@ void testAllSizes(
                 uint32_t flops = 2 * m * k * n;
                 uint32_t iterations = (peak * pow(10, 9)) / flops;
                 iterations = iterations > 10000000 ? 10000000 : iterations;
-                iterations = 10;
-                // iterations = 30000;
+                if (validate) iterations = 0;
                 if (testArm) {
                     time = testShapeArm(bigA, bigB, bigC, bigCRef, m, n, k, iterations);
                     gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
@@ -388,7 +394,7 @@ void testAllSizes(
 
                 if (testJitter) {
                     time = testShape(bigA, bigB, bigC, bigCRef, m, n, k, iterations, gemmGen);
-                    gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
+                    gflops = static_cast<float>(flops) / (time * 1000000.0f) * iterations;
                     bool correctResult = gflops > 0;
                     if (!correctResult) gflops = -gflops;
                     sprintf(PRINTF_OUT_STRING, "Square;%d;%d;%d;TillJIT-04.06.;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);

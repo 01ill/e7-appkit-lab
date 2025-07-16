@@ -4,7 +4,7 @@
 #include <cstdint>
 #include "../generators/Gemm.hpp"
 
-void initMatrices(float * a, float * b, float * c, float * cref, const uint32_t m, const uint32_t n, const uint32_t k, bool zeroC = false);
+void initMatrices(float * a, float * b, float * c, float * cref, const uint32_t m, const uint32_t n, const uint32_t k, bool zeroC = false, bool useFloat = true);
 int32_t testShapeGenerateTime(
     float * bigA, float * bigB, float * bigC, float * bigCRef,
     uint32_t m, uint32_t n, uint32_t k, uint32_t iterations, JIT::Generators::Gemm & generator);
@@ -39,10 +39,10 @@ void testGrowingN(
 void constSizeTest(
     float * bigA, float * bigB, float * bigC, float * bigCRef,
     JIT::Instructions::Instruction16 * globalBuffer,
-    uint32_t m, uint32_t n, uint32_t k);
+    uint32_t m, uint32_t n, uint32_t k, bool validate = false);
 void testAllSizes(
     float * bigA, float * bigB, float * bigC, float * bigCRef,
     JIT::Instructions::Instruction16 * globalBuffer,
     bool testArm, bool testJitter, bool testIntrinsics, bool testReference,
-    uint32_t start, uint32_t end);
+    uint32_t start, uint32_t end, bool validate = false);
 #endif // GEMM_TESTS_HPP
