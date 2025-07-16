@@ -15,6 +15,9 @@ project:
         - file: instructions/Vector.cpp
         - file: generators/Throughput.cpp
         - file: gemm_20x24.s
+        - file: helper/gemm_kernel.cpp
+        - file: helper/gemm_tests.cpp
+        - file: helper/jit_tests.cpp
 
   output:
     base-name: $Project$
