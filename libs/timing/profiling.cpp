@@ -132,8 +132,9 @@ void printCounterMemory() {
 }
 
 void printCounterMVEInstructions() {
-	SEGGER_RTT_printf(0, "Instruction Count: %d\n", ARM_PMU_Get_EVCNTR(0));
-	SEGGER_RTT_printf(0, "Cycle Count: %d\n", ARM_PMU_Get_EVCNTR(1));
+	SEGGER_RTT_printf(0, "Cycles: %d\n", ARM_PMU_Get_CCNTR());
+	SEGGER_RTT_printf(0, "Cycle Count: %d\n", ARM_PMU_Get_EVCNTR(0));
+	SEGGER_RTT_printf(0, "Instruction Count: %d\n", ARM_PMU_Get_EVCNTR(1));
 	SEGGER_RTT_printf(0, "MVE Instructions: %d\n", ARM_PMU_Get_EVCNTR(2));
 	SEGGER_RTT_printf(0, "MVE Stall Cycles: %d\n", ARM_PMU_Get_EVCNTR(3));
 	// see https://kannwischer.eu/papers/2022_ntt-int-mul.pdf, p. 19

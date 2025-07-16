@@ -70,8 +70,11 @@ class CYCCNT_Clock {
         static constexpr bool is_steady = false;
         static time_point now() noexcept {
             time_point time = time_point{duration{ARM_PMU_Get_CCNTR()}};
-            ARM_PMU_CYCCNT_Reset();
+            // ARM_PMU_CYCCNT_Reset();
             return time;
+        }
+        static void reset() noexcept {
+            ARM_PMU_CYCCNT_Reset();
         }
 };
 

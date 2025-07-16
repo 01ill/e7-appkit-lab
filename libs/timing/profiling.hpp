@@ -15,5 +15,6 @@ void printCounter();
 void printCounterStalls();
 void printCounterMemory();
 void printCounterDualIssue();
+void printCounterMVEInstructions();
 
 #endif // PROFILING_HPP
