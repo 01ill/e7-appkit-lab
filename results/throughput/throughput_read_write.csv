@@ -1,0 +1,13 @@
+Test;Time (µs);GFLOPS
+Read Throughput;1001144;3.196343
+Read Throughput SRAM 0;2726223;1.173785
+Write Throughput;1001341;3.195715
+Write Throughput SRAM 0;1758489;1.819744
+Read Throughput;1001140;3.196356
+Read Throughput SRAM 0;2726279;1.173761
+Write Throughput;1001341;3.195715
+Write Throughput SRAM 0;1758500;1.819733
+Read Throughput;1001140;3.196356
+Read Throughput SRAM 0;2726243;1.173777
+Write Throughput;1001342;3.195711
+Write Throughput SRAM 0;1758521;1.819711

@@ -1,0 +1,817 @@
+Test;Size;Time (µs);GB/s
+Read Throughput SRAM 0;512;537462;2.976954
+Scalar Read Throughput SRAM 0;512;1041701;1.535949
+Read Throughput;512;537456;2.976988
+Scalar Read Throughput;512;1041722;1.535918
+Write Throughput SRAM 0;512;900800;1.776199
+Scalar Write Throughput SRAM 0;512;1041722;1.535918
+Write Throughput;512;537545;2.976495
+Scalar Write Throughput;512;1041724;1.535915
+Read Throughput SRAM 0;536;535795;2.986217
+Scalar Read Throughput SRAM 0;536;1039884;1.538633
+Read Throughput;536;535794;2.986223
+Scalar Read Throughput;536;1039882;1.538636
+Write Throughput SRAM 0;536;899829;1.778116
+Scalar Write Throughput SRAM 0;536;1039882;1.538636
+Write Throughput;536;535884;2.985721
+Scalar Write Throughput;536;1039883;1.538635
+Read Throughput SRAM 0;564;534033;2.996070
+Scalar Read Throughput SRAM 0;564;1037936;1.541521
+Read Throughput;564;534032;2.996075
+Scalar Read Throughput;564;1037939;1.541516
+Write Throughput SRAM 0;564;901450;1.774918
+Scalar Write Throughput SRAM 0;564;1037936;1.541521
+Write Throughput;564;534122;2.995570
+Scalar Write Throughput;564;1037937;1.541519
+Read Throughput SRAM 0;592;532440;3.005033
+Scalar Read Throughput SRAM 0;592;1036175;1.544141
+Read Throughput;592;532440;3.005033
+Scalar Read Throughput;592;1036176;1.544139
+Write Throughput SRAM 0;592;897889;1.781957
+Scalar Write Throughput SRAM 0;592;1036175;1.544141
+Write Throughput;592;532531;3.004520
+Scalar Write Throughput;592;1036175;1.544141
+Read Throughput SRAM 0;620;530992;3.013228
+Scalar Read Throughput SRAM 0;620;1034573;1.546532
+Read Throughput;620;530990;3.013239
+Scalar Read Throughput;620;1034574;1.546530
+Write Throughput SRAM 0;620;899444;1.778877
+Scalar Write Throughput SRAM 0;620;1034573;1.546532
+Write Throughput;620;531085;3.012701
+Scalar Write Throughput;620;1034573;1.546532
+Read Throughput SRAM 0;652;529485;3.021804
+Scalar Read Throughput SRAM 0;652;1032907;1.549026
+Read Throughput;652;529484;3.021810
+Scalar Read Throughput;652;1032909;1.549023
+Write Throughput SRAM 0;652;898454;1.780837
+Scalar Write Throughput SRAM 0;652;1032909;1.549023
+Write Throughput;652;529575;3.021291
+Scalar Write Throughput;652;1032909;1.549023
+Read Throughput SRAM 0;684;528121;3.029609
+Scalar Read Throughput SRAM 0;684;1031402;1.551287
+Read Throughput;684;528122;3.029603
+Scalar Read Throughput;684;1031404;1.551283
+Write Throughput SRAM 0;684;897559;1.782613
+Scalar Write Throughput SRAM 0;684;1031402;1.551287
+Write Throughput;684;528211;3.029093
+Scalar Write Throughput;684;1031404;1.551283
+Read Throughput SRAM 0;716;526879;3.036750
+Scalar Read Throughput SRAM 0;716;1030030;1.553353
+Read Throughput;716;526879;3.036750
+Scalar Read Throughput;716;1030030;1.553353
+Write Throughput SRAM 0;716;896745;1.784231
+Scalar Write Throughput SRAM 0;716;1030030;1.553353
+Write Throughput;716;526969;3.036232
+Scalar Write Throughput;716;1030031;1.553351
+Read Throughput SRAM 0;752;525611;3.044076
+Scalar Read Throughput SRAM 0;752;1028624;1.555476
+Read Throughput;752;525611;3.044076
+Scalar Read Throughput;752;1028624;1.555476
+Write Throughput SRAM 0;752;893908;1.789893
+Scalar Write Throughput SRAM 0;752;1028623;1.555478
+Write Throughput;752;525710;3.043503
+Scalar Write Throughput;752;1028625;1.555475
+Read Throughput SRAM 0;788;524456;3.050780
+Scalar Read Throughput SRAM 0;788;1027349;1.557407
+Read Throughput;788;524455;3.050786
+Scalar Read Throughput;788;1027350;1.557405
+Write Throughput SRAM 0;788;895152;1.787406
+Scalar Write Throughput SRAM 0;788;1027349;1.557407
+Write Throughput;788;524549;3.050239
+Scalar Write Throughput;788;1027350;1.557405
+Read Throughput SRAM 0;828;523290;3.057578
+Scalar Read Throughput SRAM 0;828;1026060;1.559363
+Read Throughput;828;523290;3.057578
+Scalar Read Throughput;828;1026060;1.559363
+Write Throughput SRAM 0;828;894375;1.788959
+Scalar Write Throughput SRAM 0;828;1026059;1.559365
+Write Throughput;828;523384;3.057029
+Scalar Write Throughput;828;1026060;1.559363
+Read Throughput SRAM 0;868;522232;3.063772
+Scalar Read Throughput SRAM 0;868;1024891;1.561142
+Read Throughput;868;522232;3.063772
+Scalar Read Throughput;868;1024891;1.561142
+Write Throughput SRAM 0;868;893669;1.790372
+Scalar Write Throughput SRAM 0;868;1024891;1.561142
+Write Throughput;868;522324;3.063233
+Scalar Write Throughput;868;1024891;1.561142
+Read Throughput SRAM 0;912;521176;3.069980
+Scalar Read Throughput SRAM 0;912;1023723;1.562923
+Read Throughput;912;521177;3.069974
+Scalar Read Throughput;912;1023723;1.562923
+Write Throughput SRAM 0;912;891341;1.795048
+Scalar Write Throughput SRAM 0;912;1023723;1.562923
+Write Throughput;912;521268;3.069438
+Scalar Write Throughput;912;1023722;1.562924
+Read Throughput SRAM 0;956;520217;3.075640
+Scalar Read Throughput SRAM 0;956;1022663;1.564543
+Read Throughput;956;520216;3.075645
+Scalar Read Throughput;956;1022664;1.564541
+Write Throughput SRAM 0;956;892352;1.793014
+Scalar Write Throughput SRAM 0;956;1022663;1.564543
+Write Throughput;956;520310;3.075090
+Scalar Write Throughput;956;1022664;1.564541
+Read Throughput SRAM 0;1004;519266;3.081273
+Scalar Read Throughput SRAM 0;1004;1021611;1.566154
+Read Throughput;1004;519267;3.081266
+Scalar Read Throughput;1004;1021612;1.566152
+Write Throughput SRAM 0;1004;891723;1.794279
+Scalar Write Throughput SRAM 0;1004;1021611;1.566154
+Write Throughput;1004;519360;3.080715
+Scalar Write Throughput;1004;1021612;1.566152
+Read Throughput SRAM 0;1052;518403;3.086402
+Scalar Read Throughput SRAM 0;1052;1020657;1.567618
+Read Throughput;1052;518403;3.086402
+Scalar Read Throughput;1052;1020658;1.567616
+Write Throughput SRAM 0;1052;891151;1.795431
+Scalar Write Throughput SRAM 0;1052;1020657;1.567618
+Write Throughput;1052;518502;3.085813
+Scalar Write Throughput;1052;1020658;1.567616
+Read Throughput SRAM 0;1104;517551;3.091483
+Scalar Read Throughput SRAM 0;1104;1019715;1.569066
+Read Throughput;1104;517550;3.091489
+Scalar Read Throughput;1104;1019715;1.569066
+Write Throughput SRAM 0;1104;889247;1.799275
+Scalar Write Throughput SRAM 0;1104;1019715;1.569066
+Write Throughput;1104;517646;3.090915
+Scalar Write Throughput;1104;1019715;1.569066
+Read Throughput SRAM 0;1160;516720;3.096455
+Scalar Read Throughput SRAM 0;1160;1018797;1.570480
+Read Throughput;1160;516720;3.096455
+Scalar Read Throughput;1160;1018797;1.570480
+Write Throughput SRAM 0;1160;888751;1.800279
+Scalar Write Throughput SRAM 0;1160;1018797;1.570480
+Write Throughput;1160;516815;3.095885
+Scalar Write Throughput;1160;1018798;1.570478
+Read Throughput SRAM 0;1216;515966;3.100979
+Scalar Read Throughput SRAM 0;1216;1017963;1.571766
+Read Throughput;1216;515966;3.100979
+Scalar Read Throughput;1216;1017963;1.571766
+Write Throughput SRAM 0;1216;888314;1.801165
+Scalar Write Throughput SRAM 0;1216;1017963;1.571766
+Write Throughput;1216;516060;3.100415
+Scalar Write Throughput;1216;1017963;1.571766
+Read Throughput SRAM 0;1276;515231;3.105403
+Scalar Read Throughput SRAM 0;1276;1017150;1.573023
+Read Throughput;1276;515231;3.105403
+Scalar Read Throughput;1276;1017150;1.573023
+Write Throughput SRAM 0;1276;889059;1.799656
+Scalar Write Throughput SRAM 0;1276;1017150;1.573023
+Write Throughput;1276;515329;3.104813
+Scalar Write Throughput;1276;1017150;1.573023
+Read Throughput SRAM 0;1340;514519;3.109700
+Scalar Read Throughput SRAM 0;1340;1016363;1.574241
+Read Throughput;1340;514519;3.109700
+Scalar Read Throughput;1340;1016366;1.574236
+Write Throughput SRAM 0;1340;888589;1.800607
+Scalar Write Throughput SRAM 0;1340;1016363;1.574241
+Write Throughput;1340;514615;3.109120
+Scalar Write Throughput;1340;1016364;1.574239
+Read Throughput SRAM 0;1408;513833;3.113852
+Scalar Read Throughput SRAM 0;1408;1015605;1.575416
+Read Throughput;1408;513833;3.113852
+Scalar Read Throughput;1408;1015605;1.575416
+Write Throughput SRAM 0;1408;887071;1.803689
+Scalar Write Throughput SRAM 0;1408;1015605;1.575416
+Write Throughput;1408;513930;3.113265
+Scalar Write Throughput;1408;1015605;1.575416
+Read Throughput SRAM 0;1476;513212;3.117620
+Scalar Read Throughput SRAM 0;1476;1014917;1.576484
+Read Throughput;1476;513212;3.117620
+Scalar Read Throughput;1476;1014918;1.576482
+Write Throughput SRAM 0;1476;887730;1.802350
+Scalar Write Throughput SRAM 0;1476;1014918;1.576482
+Write Throughput;1476;513308;3.117037
+Scalar Write Throughput;1476;1014918;1.576482
+Read Throughput SRAM 0;1548;512613;3.121263
+Scalar Read Throughput SRAM 0;1548;1014255;1.577513
+Read Throughput;1548;512613;3.121263
+Scalar Read Throughput;1548;1014255;1.577513
+Write Throughput SRAM 0;1548;887331;1.803160
+Scalar Write Throughput SRAM 0;1548;1014254;1.577514
+Write Throughput;1548;512708;3.120685
+Scalar Write Throughput;1548;1014255;1.577513
+Read Throughput SRAM 0;1624;512040;3.124756
+Scalar Read Throughput SRAM 0;1624;1013621;1.578499
+Read Throughput;1624;512038;3.124768
+Scalar Read Throughput;1624;1013622;1.578498
+Write Throughput SRAM 0;1624;886024;1.805820
+Scalar Write Throughput SRAM 0;1624;1013621;1.578499
+Write Throughput;1624;512135;3.124176
+Scalar Write Throughput;1624;1013622;1.578498
+Read Throughput SRAM 0;1704;511488;3.128128
+Scalar Read Throughput SRAM 0;1704;1013012;1.579448
+Read Throughput;1704;511489;3.128122
+Scalar Read Throughput;1704;1013012;1.579448
+Write Throughput SRAM 0;1704;885703;1.806475
+Scalar Write Throughput SRAM 0;1704;1013011;1.579450
+Write Throughput;1704;511585;3.127535
+Scalar Write Throughput;1704;1013013;1.579447
+Read Throughput SRAM 0;1788;510965;3.131330
+Scalar Read Throughput SRAM 0;1788;1012432;1.580353
+Read Throughput;1788;510965;3.131330
+Scalar Read Throughput;1788;1012432;1.580353
+Write Throughput SRAM 0;1788;886236;1.805388
+Scalar Write Throughput SRAM 0;1788;1012433;1.580351
+Write Throughput;1788;511059;3.130754
+Scalar Write Throughput;1788;1012433;1.580351
+Read Throughput SRAM 0;1876;510466;3.134391
+Scalar Read Throughput SRAM 0;1876;1011881;1.581214
+Read Throughput;1876;510466;3.134391
+Scalar Read Throughput;1876;1011882;1.581212
+Write Throughput SRAM 0;1876;885915;1.806042
+Scalar Write Throughput SRAM 0;1876;1011882;1.581212
+Write Throughput;1876;510564;3.133789
+Scalar Write Throughput;1876;1011882;1.581212
+Read Throughput SRAM 0;1972;509972;3.137427
+Scalar Read Throughput SRAM 0;1972;1011335;1.582067
+Read Throughput;1972;509972;3.137427
+Scalar Read Throughput;1972;1011335;1.582067
+Write Throughput SRAM 0;1972;885592;1.806701
+Scalar Write Throughput SRAM 0;1972;1011336;1.582066
+Write Throughput;1972;510068;3.136837
+Scalar Write Throughput;1972;1011337;1.582064
+Read Throughput SRAM 0;2068;509526;3.140173
+Scalar Read Throughput SRAM 0;2068;1010841;1.582840
+Read Throughput;2068;509525;3.140180
+Scalar Read Throughput;2068;1010841;1.582840
+Write Throughput SRAM 0;2068;885305;1.807287
+Scalar Write Throughput SRAM 0;2068;1010841;1.582840
+Write Throughput;2068;509623;3.139576
+Scalar Write Throughput;2068;1010841;1.582840
+Read Throughput SRAM 0;2168;509101;3.142795
+Scalar Read Throughput SRAM 0;2168;1010370;1.583578
+Read Throughput;2168;509100;3.142801
+Scalar Read Throughput;2168;1010372;1.583575
+Write Throughput SRAM 0;2168;884325;1.809290
+Scalar Write Throughput SRAM 0;2168;1010371;1.583577
+Write Throughput;2168;509197;3.142202
+Scalar Write Throughput;2168;1010371;1.583577
+Read Throughput SRAM 0;2276;508684;3.145371
+Scalar Read Throughput SRAM 0;2276;1009910;1.584300
+Read Throughput;2276;508684;3.145371
+Scalar Read Throughput;2276;1009910;1.584300
+Write Throughput SRAM 0;2276;884755;1.808410
+Scalar Write Throughput SRAM 0;2276;1009910;1.584300
+Write Throughput;2276;508781;3.144772
+Scalar Write Throughput;2276;1009910;1.584300
+Read Throughput SRAM 0;2388;508294;3.147784
+Scalar Read Throughput SRAM 0;2388;1009480;1.584974
+Read Throughput;2388;508295;3.147778
+Scalar Read Throughput;2388;1009481;1.584973
+Write Throughput SRAM 0;2388;884487;1.808958
+Scalar Write Throughput SRAM 0;2388;1009481;1.584973
+Write Throughput;2388;508393;3.147172
+Scalar Write Throughput;2388;1009481;1.584973
+Read Throughput SRAM 0;2508;507912;3.150152
+Scalar Read Throughput SRAM 0;2508;1009057;1.585639
+Read Throughput;2508;507912;3.150152
+Scalar Read Throughput;2508;1009058;1.585637
+Write Throughput SRAM 0;2508;884233;1.809478
+Scalar Write Throughput SRAM 0;2508;1009057;1.585639
+Write Throughput;2508;508009;3.149550
+Scalar Write Throughput;2508;1009059;1.585636
+Read Throughput SRAM 0;2632;507555;3.152368
+Scalar Read Throughput SRAM 0;2632;1008662;1.586260
+Read Throughput;2632;507555;3.152368
+Scalar Read Throughput;2632;1008662;1.586260
+Write Throughput SRAM 0;2632;883427;1.811129
+Scalar Write Throughput SRAM 0;2632;1008662;1.586260
+Write Throughput;2632;507653;3.151759
+Scalar Write Throughput;2632;1008663;1.586258
+Read Throughput SRAM 0;2760;507221;3.154444
+Scalar Read Throughput SRAM 0;2760;1008294;1.586839
+Read Throughput;2760;507220;3.154450
+Scalar Read Throughput;2760;1008292;1.586842
+Write Throughput SRAM 0;2760;883238;1.811516
+Scalar Write Throughput SRAM 0;2760;1008293;1.586840
+Write Throughput;2760;507319;3.153834
+Scalar Write Throughput;2760;1008292;1.586842
+Read Throughput SRAM 0;2896;506896;3.156466
+Scalar Read Throughput SRAM 0;2896;1007934;1.587405
+Read Throughput;2896;506896;3.156466
+Scalar Read Throughput;2896;1007934;1.587405
+Write Throughput SRAM 0;2896;883061;1.811879
+Scalar Write Throughput SRAM 0;2896;1007934;1.587405
+Write Throughput;2896;506994;3.155856
+Scalar Write Throughput;2896;1007936;1.587402
+Read Throughput SRAM 0;3040;506589;3.158379
+Scalar Read Throughput SRAM 0;3040;1007586;1.587954
+Read Throughput;3040;506583;3.158416
+Scalar Read Throughput;3040;1007586;1.587954
+Write Throughput SRAM 0;3040;882866;1.812280
+Scalar Write Throughput SRAM 0;3040;1007585;1.587955
+Write Throughput;3040;506682;3.157799
+Scalar Write Throughput;3040;1007589;1.587949
+Read Throughput SRAM 0;3188;506295;3.160213
+Scalar Read Throughput SRAM 0;3188;1007268;1.588455
+Read Throughput;3188;506294;3.160219
+Scalar Read Throughput;3188;1007269;1.588454
+Write Throughput SRAM 0;3188;883153;1.811691
+Scalar Write Throughput SRAM 0;3188;1007269;1.588454
+Write Throughput;3188;506392;3.159608
+Scalar Write Throughput;3188;1007269;1.588454
+Read Throughput SRAM 0;3348;506010;3.161993
+Scalar Read Throughput SRAM 0;3348;1006954;1.588951
+Read Throughput;3348;506011;3.161987
+Scalar Read Throughput;3348;1006955;1.588949
+Write Throughput SRAM 0;3348;882969;1.812068
+Scalar Write Throughput SRAM 0;3348;1006955;1.588949
+Write Throughput;3348;506109;3.161374
+Scalar Write Throughput;3348;1006955;1.588949
+Read Throughput SRAM 0;3512;505746;3.163644
+Scalar Read Throughput SRAM 0;3512;1006662;1.589411
+Read Throughput;3512;505746;3.163644
+Scalar Read Throughput;3512;1006662;1.589411
+Write Throughput SRAM 0;3512;882390;1.813257
+Scalar Write Throughput SRAM 0;3512;1006661;1.589413
+Write Throughput;3512;505844;3.163030
+Scalar Write Throughput;3512;1006662;1.589411
+Read Throughput SRAM 0;3684;505492;3.165233
+Scalar Read Throughput SRAM 0;3684;1006378;1.589860
+Read Throughput;3684;505491;3.165239
+Scalar Read Throughput;3684;1006379;1.589858
+Write Throughput SRAM 0;3684;882631;1.812762
+Scalar Write Throughput SRAM 0;3684;1006378;1.589860
+Write Throughput;3684;505589;3.164626
+Scalar Write Throughput;3684;1006378;1.589860
+Read Throughput SRAM 0;3864;505250;3.166749
+Scalar Read Throughput SRAM 0;3864;1006112;1.590280
+Read Throughput;3864;505250;3.166749
+Scalar Read Throughput;3864;1006112;1.590280
+Write Throughput SRAM 0;3864;882098;1.813857
+Scalar Write Throughput SRAM 0;3864;1006112;1.590280
+Write Throughput;3864;505348;3.166135
+Scalar Write Throughput;3864;1006112;1.590280
+Read Throughput SRAM 0;4056;505019;3.168198
+Scalar Read Throughput SRAM 0;4056;1005856;1.590685
+Read Throughput;4056;505018;3.168204
+Scalar Read Throughput;4056;1005857;1.590683
+Write Throughput SRAM 0;4056;881958;1.814145
+Scalar Write Throughput SRAM 0;4056;1005856;1.590685
+Write Throughput;4056;505117;3.167583
+Scalar Write Throughput;4056;1005857;1.590683
+Read Throughput SRAM 0;4256;504794;3.169610
+Scalar Read Throughput SRAM 0;4256;1005606;1.591080
+Read Throughput;4256;504795;3.169603
+Scalar Read Throughput;4256;1005606;1.591080
+Write Throughput SRAM 0;4256;881829;1.814411
+Scalar Write Throughput SRAM 0;4256;1005605;1.591082
+Write Throughput;4256;504892;3.168995
+Scalar Write Throughput;4256;1005606;1.591080
+Read Throughput SRAM 0;4468;504584;3.170929
+Scalar Read Throughput SRAM 0;4468;1005375;1.591446
+Read Throughput;4468;504585;3.170923
+Scalar Read Throughput;4468;1005375;1.591446
+Write Throughput SRAM 0;4468;882029;1.813999
+Scalar Write Throughput SRAM 0;4468;1005375;1.591446
+Write Throughput;4468;504684;3.170301
+Scalar Write Throughput;4468;1005376;1.591444
+Read Throughput SRAM 0;4688;504386;3.172174
+Scalar Read Throughput SRAM 0;4688;1005157;1.591791
+Read Throughput;4688;504387;3.172167
+Scalar Read Throughput;4688;1005158;1.591789
+Write Throughput SRAM 0;4688;881607;1.814868
+Scalar Write Throughput SRAM 0;4688;1005158;1.591789
+Write Throughput;4688;504485;3.171551
+Scalar Write Throughput;4688;1005157;1.591791
+Read Throughput SRAM 0;4916;504193;3.173388
+Scalar Read Throughput SRAM 0;4916;1004939;1.592136
+Read Throughput;4916;504193;3.173388
+Scalar Read Throughput;4916;1004940;1.592135
+Write Throughput SRAM 0;4916;881775;1.814522
+Scalar Write Throughput SRAM 0;4916;1004940;1.592135
+Write Throughput;4916;504291;3.172771
+Scalar Write Throughput;4916;1004939;1.592136
+Read Throughput SRAM 0;5160;504016;3.174502
+Scalar Read Throughput SRAM 0;5160;1004744;1.592445
+Read Throughput;5160;504014;3.174515
+Scalar Read Throughput;5160;1004745;1.592444
+Write Throughput SRAM 0;5160;881384;1.815327
+Scalar Write Throughput SRAM 0;5160;1004744;1.592445
+Write Throughput;5160;504112;3.173898
+Scalar Write Throughput;5160;1004744;1.592445
+Read Throughput SRAM 0;5416;503842;3.175599
+Scalar Read Throughput SRAM 0;5416;1004553;1.592748
+Read Throughput;5416;503843;3.175592
+Scalar Read Throughput;5416;1004559;1.592739
+Write Throughput SRAM 0;5416;881285;1.815531
+Scalar Write Throughput SRAM 0;5416;1004550;1.592753
+Write Throughput;5416;503938;3.174994
+Scalar Write Throughput;5416;1004551;1.592751
+Read Throughput SRAM 0;5160;504016;3.174502
+Scalar Read Throughput SRAM 0;5160;1004721;1.592482
+Read Throughput;5160;504013;3.174521
+Scalar Read Throughput;5160;1004742;1.592449
+Write Throughput SRAM 0;5160;881369;1.815358
+Scalar Write Throughput SRAM 0;5160;1004742;1.592449
+Write Throughput;5160;504112;3.173898
+Scalar Write Throughput;5160;1004743;1.592447
+Read Throughput SRAM 0;5416;503843;3.175592
+Scalar Read Throughput SRAM 0;5416;1004550;1.592753
+Read Throughput;5416;503840;3.175611
+Scalar Read Throughput;5416;1004551;1.592751
+Write Throughput SRAM 0;5416;881267;1.815568
+Scalar Write Throughput SRAM 0;5416;1004551;1.592751
+Write Throughput;5416;503938;3.174994
+Scalar Write Throughput;5416;1004552;1.592750
+Read Throughput SRAM 0;5680;503676;3.176645
+Scalar Read Throughput SRAM 0;5680;1004367;1.593043
+Read Throughput;5680;503674;3.176658
+Scalar Read Throughput;5680;1004366;1.593045
+Write Throughput SRAM 0;5680;881183;1.815741
+Scalar Write Throughput SRAM 0;5680;1004367;1.593043
+Write Throughput;5680;503774;3.176027
+Scalar Write Throughput;5680;1004367;1.593043
+Read Throughput SRAM 0;5960;516277;3.099112
+Scalar Read Throughput SRAM 0;5960;1017057;1.573166
+Read Throughput;5960;503520;3.177629
+Scalar Read Throughput;5960;1004200;1.593308
+Write Throughput SRAM 0;5960;881092;1.815928
+Scalar Write Throughput SRAM 0;5960;1016837;1.573507
+Write Throughput;5960;503619;3.177005
+Scalar Write Throughput;5960;1004199;1.593310
+Read Throughput SRAM 0;6256;526415;3.039427
+Scalar Read Throughput SRAM 0;6256;1027319;1.557452
+Read Throughput;6256;503365;3.178608
+Scalar Read Throughput;6256;1004023;1.593589
+Write Throughput SRAM 0;6256;880997;1.816124
+Scalar Write Throughput SRAM 0;6256;1027601;1.557024
+Write Throughput;6256;503464;3.177983
+Scalar Write Throughput;6256;1004023;1.593589
+Read Throughput SRAM 0;6564;659534;2.425955
+Scalar Read Throughput SRAM 0;6564;1165957;1.372263
+Read Throughput;6564;503223;3.179505
+Scalar Read Throughput;6564;1003868;1.593835
+Write Throughput SRAM 0;6564;881131;1.815848
+Scalar Write Throughput SRAM 0;6564;1165973;1.372244
+Write Throughput;6564;503321;3.178886
+Scalar Write Throughput;6564;1003868;1.593835
+Read Throughput SRAM 0;6888;709659;2.254604
+Scalar Read Throughput SRAM 0;6888;1208489;1.323967
+Read Throughput;6888;503091;3.180339
+Scalar Read Throughput;6888;1003723;1.594065
+Write Throughput SRAM 0;6888;881251;1.815601
+Scalar Write Throughput SRAM 0;6888;1208452;1.324008
+Write Throughput;6888;503189;3.179720
+Scalar Write Throughput;6888;1003723;1.594065
+Read Throughput SRAM 0;7228;710455;2.252078
+Scalar Read Throughput SRAM 0;7228;1204837;1.327981
+Read Throughput;7228;502956;3.181193
+Scalar Read Throughput;7228;1003573;1.594304
+Write Throughput SRAM 0;7228;880950;1.816221
+Scalar Write Throughput SRAM 0;7228;1204749;1.328077
+Write Throughput;7228;503056;3.180560
+Scalar Write Throughput;7228;1003573;1.594304
+Read Throughput SRAM 0;7584;719506;2.223748
+Scalar Read Throughput SRAM 0;7584;1211674;1.320487
+Read Throughput;7584;502830;3.181990
+Scalar Read Throughput;7584;1003430;1.594531
+Write Throughput SRAM 0;7584;881055;1.816005
+Scalar Write Throughput SRAM 0;7584;1211585;1.320584
+Write Throughput;7584;502930;3.181357
+Scalar Write Throughput;7584;1003430;1.594531
+Read Throughput SRAM 0;7956;793129;2.017326
+Scalar Read Throughput SRAM 0;7956;1298571;1.232124
+Read Throughput;7956;502713;3.182730
+Scalar Read Throughput;7956;1003301;1.594736
+Write Throughput SRAM 0;7956;880789;1.816553
+Scalar Write Throughput SRAM 0;7956;1298685;1.232015
+Write Throughput;7956;502812;3.182104
+Scalar Write Throughput;7956;1003301;1.594736
+Read Throughput SRAM 0;8348;1044871;1.531290
+Scalar Read Throughput SRAM 0;8348;1563920;1.023070
+Read Throughput;8348;502599;3.183452
+Scalar Read Throughput;8348;1003172;1.594941
+Write Throughput SRAM 0;8348;881063;1.815988
+Scalar Write Throughput SRAM 0;8348;1563528;1.023327
+Write Throughput;8348;502699;3.182819
+Scalar Write Throughput;8348;1003172;1.594941
+Read Throughput SRAM 0;8760;1355944;1.179990
+Scalar Read Throughput SRAM 0;8760;1892924;0.845253
+Read Throughput;8760;502497;3.184099
+Scalar Read Throughput;8760;1003065;1.595111
+Write Throughput SRAM 0;8760;880471;1.817209
+Scalar Write Throughput SRAM 0;8760;1892922;0.845254
+Write Throughput;8760;502596;3.183471
+Scalar Write Throughput;8760;1003065;1.595111
+Read Throughput SRAM 0;9192;1650695;0.969289
+Scalar Read Throughput SRAM 0;9192;2205185;0.725563
+Read Throughput;9192;502394;3.184752
+Scalar Read Throughput;9192;1002951;1.595292
+Write Throughput SRAM 0;9192;880393;1.817370
+Scalar Write Throughput SRAM 0;9192;2205036;0.725612
+Write Throughput;9192;502493;3.184124
+Scalar Write Throughput;9192;1002951;1.595292
+Read Throughput SRAM 0;9644;1959905;0.816366
+Scalar Read Throughput SRAM 0;9644;2541379;0.629579
+Read Throughput;9644;502291;3.185405
+Scalar Read Throughput;9644;1002833;1.595480
+Write Throughput SRAM 0;9644;880783;1.816566
+Scalar Write Throughput SRAM 0;9644;2541141;0.629638
+Write Throughput;9644;502390;3.184777
+Scalar Write Throughput;9644;1002831;1.595483
+Read Throughput SRAM 0;10120;2198072;0.727911
+Scalar Read Throughput SRAM 0;10120;2794833;0.572485
+Read Throughput;10120;502196;3.186007
+Scalar Read Throughput;10120;1002724;1.595654
+Write Throughput SRAM 0;10120;880543;1.817061
+Scalar Write Throughput SRAM 0;10120;2794554;0.572542
+Write Throughput;10120;502295;3.185379
+Scalar Write Throughput;10120;1002724;1.595654
+Read Throughput SRAM 0;10620;2353237;0.679915
+Scalar Read Throughput SRAM 0;10620;2960957;0.540366
+Read Throughput;10620;502105;3.186584
+Scalar Read Throughput;10620;1002621;1.595817
+Write Throughput SRAM 0;10620;880615;1.816912
+Scalar Write Throughput SRAM 0;10620;2960960;0.540365
+Write Throughput;10620;502205;3.185950
+Scalar Write Throughput;10620;1002622;1.595816
+Read Throughput SRAM 0;11140;2506605;0.638314
+Scalar Read Throughput SRAM 0;11140;3118203;0.513116
+Read Throughput;11140;502023;3.187105
+Scalar Read Throughput;11140;1002529;1.595964
+Write Throughput SRAM 0;11140;880273;1.817618
+Scalar Write Throughput SRAM 0;11140;3118776;0.513022
+Write Throughput;11140;502121;3.186483
+Scalar Write Throughput;11140;1002531;1.595961
+Read Throughput SRAM 0;11692;2653236;0.603037
+Scalar Read Throughput SRAM 0;11692;3273054;0.488840
+Read Throughput;11692;501945;3.187600
+Scalar Read Throughput;11692;1002447;1.596094
+Write Throughput SRAM 0;11692;880492;1.817166
+Scalar Write Throughput SRAM 0;11692;3272920;0.488860
+Write Throughput;11692;502044;3.186972
+Scalar Write Throughput;11692;1002448;1.596093
+Read Throughput SRAM 0;12268;2758013;0.580128
+Scalar Read Throughput SRAM 0;12268;3379348;0.473464
+Read Throughput;12268;501875;3.188045
+Scalar Read Throughput;12268;1002368;1.596220
+Write Throughput SRAM 0;12268;880412;1.817331
+Scalar Write Throughput SRAM 0;12268;3379428;0.473453
+Write Throughput;12268;501970;3.187442
+Scalar Write Throughput;12268;1002368;1.596220
+Read Throughput SRAM 0;12872;2800212;0.571385
+Scalar Read Throughput SRAM 0;12872;3419176;0.467949
+Read Throughput;12872;501797;3.188540
+Scalar Read Throughput;12872;1002284;1.596354
+Write Throughput SRAM 0;12872;880219;1.817729
+Scalar Write Throughput SRAM 0;12872;3418715;0.468012
+Write Throughput;12872;501897;3.187905
+Scalar Write Throughput;12872;1002285;1.596352
+Read Throughput SRAM 0;13504;2853139;0.560786
+Scalar Read Throughput SRAM 0;13504;3470949;0.460969
+Read Throughput;13504;501716;3.189055
+Scalar Read Throughput;13504;1002184;1.596513
+Write Throughput SRAM 0;13504;879910;1.818368
+Scalar Write Throughput SRAM 0;13504;3471608;0.460882
+Write Throughput;13504;501815;3.188426
+Scalar Write Throughput;13504;1002184;1.596513
+Read Throughput SRAM 0;14172;2885455;0.554505
+Scalar Read Throughput SRAM 0;14172;3500385;0.457093
+Read Throughput;14172;501651;3.189468
+Scalar Read Throughput;14172;1002114;1.596625
+Write Throughput SRAM 0;14172;879996;1.818190
+Scalar Write Throughput SRAM 0;14172;3500093;0.457131
+Write Throughput;14172;501750;3.188839
+Scalar Write Throughput;14172;1002114;1.596625
+Read Throughput SRAM 0;14868;2874232;0.556670
+Scalar Read Throughput SRAM 0;14868;3473150;0.460677
+Read Throughput;14868;501592;3.189844
+Scalar Read Throughput;14868;1002050;1.596727
+Write Throughput SRAM 0;14868;880147;1.817878
+Scalar Write Throughput SRAM 0;14868;3472967;0.460701
+Write Throughput;14868;501692;3.189208
+Scalar Write Throughput;14868;1002052;1.596724
+Read Throughput SRAM 0;15604;2861081;0.559229
+Scalar Read Throughput SRAM 0;15604;3445925;0.464317
+Read Throughput;15604;501529;3.190244
+Scalar Read Throughput;15604;1001980;1.596838
+Write Throughput SRAM 0;15604;880095;1.817986
+Scalar Write Throughput SRAM 0;15604;3446305;0.464265
+Write Throughput;15604;501628;3.189615
+Scalar Write Throughput;15604;1001981;1.596837
+Read Throughput SRAM 0;16372;2835721;0.564230
+Scalar Read Throughput SRAM 0;16372;3403078;0.470163
+Read Throughput;16372;501460;3.190683
+Scalar Read Throughput;16372;1001893;1.596977
+Write Throughput SRAM 0;16372;880025;1.818130
+Scalar Write Throughput SRAM 0;16372;3403487;0.470106
+Write Throughput;16372;501560;3.190047
+Scalar Write Throughput;16372;1001894;1.596975
+Read Throughput SRAM 0;17180;2760759;0.579551
+Scalar Read Throughput SRAM 0;17180;3305865;0.483988
+Read Throughput;17180;501406;3.191027
+Scalar Read Throughput;17180;1001832;1.597074
+Write Throughput SRAM 0;17180;879802;1.818591
+Scalar Write Throughput SRAM 0;17180;3305840;0.483992
+Write Throughput;17180;501504;3.190403
+Scalar Write Throughput;17180;1001833;1.597072
+Read Throughput SRAM 0;18024;2696895;0.593275
+Scalar Read Throughput SRAM 0;18024;3216250;0.497474
+Read Throughput;18024;501357;3.191339
+Scalar Read Throughput;18024;1001783;1.597152
+Write Throughput SRAM 0;18024;879846;1.818500
+Scalar Write Throughput SRAM 0;18024;3217052;0.497350
+Write Throughput;18024;501456;3.190709
+Scalar Write Throughput;18024;1001783;1.597152
+Read Throughput SRAM 0;18912;2569052;0.622798
+Scalar Read Throughput SRAM 0;18912;3097013;0.516627
+Read Throughput;18912;501307;3.191657
+Scalar Read Throughput;18912;1001726;1.597243
+Write Throughput SRAM 0;18912;879802;1.818591
+Scalar Write Throughput SRAM 0;18912;3097638;0.516523
+Write Throughput;18912;501407;3.191020
+Scalar Write Throughput;18912;1001727;1.597242
+Read Throughput SRAM 0;19844;2439146;0.655967
+Scalar Read Throughput SRAM 0;19844;2966012;0.539445
+Read Throughput;19844;501267;3.191912
+Scalar Read Throughput;19844;1001688;1.597304
+Write Throughput SRAM 0;19844;879855;1.818481
+Scalar Write Throughput SRAM 0;19844;2967554;0.539165
+Write Throughput;19844;501367;3.191275
+Scalar Write Throughput;19844;1001688;1.597304
+Read Throughput SRAM 0;20824;2200427;0.727132
+Scalar Read Throughput SRAM 0;20824;2830106;0.565350
+Read Throughput;20824;501210;3.192275
+Scalar Read Throughput;20824;1001616;1.597419
+Write Throughput SRAM 0;20824;879717;1.818767
+Scalar Write Throughput SRAM 0;20824;2829633;0.565444
+Write Throughput;20824;501310;3.191638
+Scalar Write Throughput;20824;1001618;1.597415
+Read Throughput SRAM 0;21848;1656753;0.965744
+Scalar Read Throughput SRAM 0;21848;2682604;0.596435
+Read Throughput;21848;501174;3.192504
+Scalar Read Throughput;21848;1001581;1.597474
+Write Throughput SRAM 0;21848;879692;1.818818
+Scalar Write Throughput SRAM 0;21848;2682613;0.596433
+Write Throughput;21848;501273;3.191874
+Scalar Write Throughput;21848;1001581;1.597474
+Read Throughput SRAM 0;22928;1409810;1.134905
+Scalar Read Throughput SRAM 0;22928;2531322;0.632081
+Read Throughput;22928;501113;3.192893
+Scalar Read Throughput;22928;1001497;1.597608
+Write Throughput SRAM 0;22928;879624;1.818959
+Scalar Write Throughput SRAM 0;22928;2531623;0.632006
+Write Throughput;22928;501213;3.192256
+Scalar Write Throughput;22928;1001497;1.597608
+Read Throughput SRAM 0;24056;1380352;1.159125
+Scalar Read Throughput SRAM 0;24056;2383516;0.671277
+Read Throughput;24056;501074;3.193141
+Scalar Read Throughput;24056;1001452;1.597680
+Write Throughput SRAM 0;24056;879591;1.819027
+Scalar Write Throughput SRAM 0;24056;2379473;0.672418
+Write Throughput;24056;501173;3.192510
+Scalar Write Throughput;24056;1001452;1.597680
+Read Throughput SRAM 0;25240;1373151;1.165203
+Scalar Read Throughput SRAM 0;25240;2221483;0.720240
+Read Throughput;25240;501034;3.193396
+Scalar Read Throughput;25240;1001406;1.597754
+Write Throughput SRAM 0;25240;879557;1.819098
+Scalar Write Throughput SRAM 0;25240;2220496;0.720560
+Write Throughput;25240;501134;3.192759
+Scalar Write Throughput;25240;1001405;1.597755
+Read Throughput SRAM 0;26484;1367088;1.170371
+Scalar Read Throughput SRAM 0;26484;2087801;0.766357
+Read Throughput;26484;501009;3.193555
+Scalar Read Throughput;26484;1001388;1.597782
+Write Throughput SRAM 0;26484;879604;1.819000
+Scalar Write Throughput SRAM 0;26484;2088511;0.766096
+Write Throughput;26484;501109;3.192918
+Scalar Write Throughput;26484;1001388;1.597782
+Read Throughput SRAM 0;27792;1366626;1.170766
+Scalar Read Throughput SRAM 0;27792;1955788;0.818085
+Read Throughput;27792;500966;3.193830
+Scalar Read Throughput;27792;1001333;1.597870
+Write Throughput SRAM 0;27792;879502;1.819211
+Scalar Write Throughput SRAM 0;27792;1955278;0.818298
+Write Throughput;27792;501066;3.193192
+Scalar Write Throughput;27792;1001333;1.597870
+Read Throughput SRAM 0;29160;1367049;1.170404
+Scalar Read Throughput SRAM 0;29160;1871633;0.854868
+Read Throughput;29160;500939;3.194002
+Scalar Read Throughput;29160;1001307;1.597911
+Write Throughput SRAM 0;29160;879484;1.819248
+Scalar Write Throughput SRAM 0;29160;1871333;0.855006
+Write Throughput;29160;501039;3.193364
+Scalar Write Throughput;29160;1001307;1.597911
+Read Throughput SRAM 0;30596;1361809;1.174908
+Scalar Read Throughput SRAM 0;30596;1803358;0.887234
+Read Throughput;30596;500899;3.194257
+Scalar Read Throughput;30596;1001254;1.597996
+Write Throughput SRAM 0;30596;879496;1.819224
+Scalar Write Throughput SRAM 0;30596;1803576;0.887126
+Write Throughput;30596;500998;3.193625
+Scalar Write Throughput;30596;1001255;1.597995
+Read Throughput SRAM 0;32104;1362957;1.173918
+Scalar Read Throughput SRAM 0;32104;1754119;0.912139
+Read Throughput;32104;500871;3.194435
+Scalar Read Throughput;32104;1001224;1.598044
+Write Throughput SRAM 0;32104;879421;1.819379
+Scalar Write Throughput SRAM 0;32104;1758270;0.909985
+Write Throughput;32104;500971;3.193798
+Scalar Write Throughput;32104;1001225;1.598042
+Read Throughput SRAM 0;33688;1363735;1.173248
+Scalar Read Throughput SRAM 0;33688;1724702;0.927697
+Read Throughput;33688;500833;3.194678
+Scalar Read Throughput;33688;1001173;1.598125
+Write Throughput SRAM 0;33688;879371;1.819482
+Scalar Write Throughput SRAM 0;33688;1727437;0.926228
+Write Throughput;33688;500933;3.194040
+Scalar Write Throughput;33688;1001174;1.598124
+Read Throughput SRAM 0;35348;1364606;1.172500
+Scalar Read Throughput SRAM 0;35348;1694704;0.944118
+Read Throughput;35348;500830;3.194697
+Scalar Read Throughput;35348;1001192;1.598095
+Write Throughput SRAM 0;35348;879447;1.819325
+Scalar Write Throughput SRAM 0;35348;1694480;0.944242
+Write Throughput;35348;500930;3.194059
+Scalar Write Throughput;35348;1001190;1.598098
+Read Throughput SRAM 0;37088;1364916;1.172233
+Scalar Read Throughput SRAM 0;37088;1671438;0.957260
+Read Throughput;37088;500798;3.194901
+Scalar Read Throughput;37088;1001147;1.598167
+Write Throughput SRAM 0;37088;879357;1.819511
+Scalar Write Throughput SRAM 0;37088;1672267;0.956785
+Write Throughput;37088;500897;3.194269
+Scalar Write Throughput;37088;1001148;1.598165
+Read Throughput SRAM 0;38916;1363800;1.173193
+Scalar Read Throughput SRAM 0;38916;1651399;0.968875
+Read Throughput;38916;500753;3.195188
+Scalar Read Throughput;38916;1001079;1.598276
+Write Throughput SRAM 0;38916;879340;1.819546
+Scalar Write Throughput SRAM 0;38916;1652530;0.968212
+Write Throughput;38916;500851;3.194563
+Scalar Write Throughput;38916;1001079;1.598276
+Read Throughput SRAM 0;40832;1360356;1.176163
+Scalar Read Throughput SRAM 0;40832;1629060;0.982162
+Read Throughput;40832;500741;3.195265
+Scalar Read Throughput;40832;1001078;1.598277
+Write Throughput SRAM 0;40832;879314;1.819600
+Scalar Write Throughput SRAM 0;40832;1631561;0.980656
+Write Throughput;40832;500841;3.194627
+Scalar Write Throughput;40832;1001078;1.598277
+Read Throughput SRAM 0;42844;1360436;1.176094
+Scalar Read Throughput SRAM 0;42844;1616912;0.989541
+Read Throughput;42844;500719;3.195405
+Scalar Read Throughput;42844;1001052;1.598319
+Write Throughput SRAM 0;42844;879336;1.819555
+Scalar Write Throughput SRAM 0;42844;1616898;0.989549
+Write Throughput;42844;500819;3.194767
+Scalar Write Throughput;42844;1001053;1.598317
+Read Throughput SRAM 0;44956;1360457;1.176075
+Scalar Read Throughput SRAM 0;44956;1605797;0.996390
+Read Throughput;44956;500673;3.195699
+Scalar Read Throughput;44956;1000979;1.598435
+Write Throughput SRAM 0;44956;879270;1.819691
+Scalar Write Throughput SRAM 0;44956;1605021;0.996872
+Write Throughput;44956;500773;3.195060
+Scalar Write Throughput;44956;1000979;1.598435
+Read Throughput SRAM 0;47172;1364091;1.172942
+Scalar Read Throughput SRAM 0;47172;1598461;1.000963
+Read Throughput;47172;500646;3.195871
+Scalar Read Throughput;47172;1000948;1.598485
+Write Throughput SRAM 0;47172;879237;1.819760
+Scalar Write Throughput SRAM 0;47172;1599913;1.000054
+Write Throughput;47172;500748;3.195220
+Scalar Write Throughput;47172;1000946;1.598488
+Read Throughput SRAM 0;49496;1363297;1.173625
+Scalar Read Throughput SRAM 0;49496;1590677;1.005861
+Read Throughput;49496;500633;3.195954
+Scalar Read Throughput;49496;1000934;1.598507
+Write Throughput SRAM 0;49496;879196;1.819844
+Scalar Write Throughput SRAM 0;49496;1592141;1.004936
+Write Throughput;49496;500733;3.195316
+Scalar Write Throughput;49496;1000934;1.598507
+Read Throughput SRAM 0;51936;1362358;1.174434
+Scalar Read Throughput SRAM 0;51936;1582291;1.011192
+Read Throughput;51936;500589;3.196235
+Scalar Read Throughput;51936;1000864;1.598619
+Write Throughput SRAM 0;51936;879142;1.819956
+Scalar Write Throughput SRAM 0;51936;1582446;1.011093
+Write Throughput;51936;500689;3.195596
+Scalar Write Throughput;51936;1000863;1.598620
+Read Throughput SRAM 0;54496;1361440;1.175226
+Scalar Read Throughput SRAM 0;54496;1576499;1.014907
+Read Throughput;54496;500552;3.196471
+Scalar Read Throughput;54496;1000804;1.598715
+Write Throughput SRAM 0;54496;879021;1.820207
+Scalar Write Throughput SRAM 0;54496;1576634;1.014820
+Write Throughput;54496;500651;3.195839
+Scalar Write Throughput;54496;1000804;1.598715
+Read Throughput SRAM 0;57180;1360497;1.176041
+Scalar Read Throughput SRAM 0;57180;1568909;1.019817
+Read Throughput;57180;500567;3.196375
+Scalar Read Throughput;57180;1000849;1.598643
+Write Throughput SRAM 0;57180;879156;1.819927
+Scalar Write Throughput SRAM 0;57180;1568993;1.019762
+Write Throughput;57180;500667;3.195737
+Scalar Write Throughput;57180;1000849;1.598643
+Read Throughput SRAM 0;60000;1362453;1.174352
+Scalar Read Throughput SRAM 0;60000;1564860;1.022456
+Read Throughput;60000;500530;3.196612
+Scalar Read Throughput;60000;1000791;1.598735
+Write Throughput SRAM 0;60000;879074;1.820097
+Scalar Write Throughput SRAM 0;60000;1566473;1.021403
+Write Throughput;60000;500630;3.195973
+Scalar Write Throughput;60000;1000789;1.598739
