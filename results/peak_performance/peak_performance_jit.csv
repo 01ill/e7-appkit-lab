@@ -1,2 +1,4 @@
-Function ; Time; FLOPS
-PeakJIT;2400791;1.599473
+Test;FLOPS
+Buffer im ITCM;1.599311
+Buffer im DTCM;1.599310
+Buffer im SRAM0;1.599311

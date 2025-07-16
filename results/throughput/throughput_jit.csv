@@ -1,3 +1,4 @@
-Function ; Time ; GB/s
-JIT-ITCM;720848;3.196235
-JIT-DTCM;764515;3.013675
+Test;GB/s
+Throughput JIT ITCM;3.190448
+Throughput JIT DTCM;2.985906
+Throughput JIT SRAM0;3.191038
