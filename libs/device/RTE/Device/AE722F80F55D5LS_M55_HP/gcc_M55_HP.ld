@@ -123,6 +123,7 @@ SECTIONS
 
   .bss.at_sram0 (NOLOAD) : ALIGN(8)
   {
+    *(.sram0_jit)            /* JIT-buffer for sram0 */
     *(.bss.array_region_sram0)            /* Buffer for large arrays */
     *(.bss.lcd_crop_and_interpolate_buf)  /* LCD crop and intrepolate image processing buffer. */
     *(.bss.lcd_frame_buf)                 /* LCD frame Buffer. */
