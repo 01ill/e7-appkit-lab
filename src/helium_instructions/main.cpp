@@ -24,7 +24,9 @@ extern "C" {
     void branchCBZ(uint32_t count);
     void testHeliumAlignment(uint32_t count, float const * arr);
     void testHeliumAlignmentNonAligned(uint32_t count, float const * arr);
-    void testHeliumAlignmentLEUnaligned(uint32_t count, float const * arr);
+    void testHeliumAlignmentVFMA(uint32_t count, float const * arr);
+    void testHeliumAlignmentNonAlignedVFMA(uint32_t count, float const * arr);
+    // void testHeliumAlignmentLEUnaligned(uint32_t count, float const * arr);
 }
 
 void testBranching() {
@@ -71,32 +73,49 @@ void testBranching() {
 
 void testAlignment() {
     float hallo[8] = {0, 1, 2, 3, 4, 5, 6, 7};
-    
+    SEGGER_RTT_printf(0, "Test;Time (µs);Cycles\n");
     enableCpuClock();
-    uint32_t count = 2 * pow(10, 7);
     auto start = CYCCNT_Clock::now();
-    testHeliumAlignment(count, hallo);
     auto end = CYCCNT_Clock::now();
     uint32_t time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-
-    sprintf(PRINTF_OUT_STRING, "Helium Aligned;%d\r\n", time);
+    uint32_t count = 2 * pow(10, 7);
+    count = 10000;
+    start = CYCCNT_Clock::now();
+    testHeliumAlignment(count, hallo);
+    end = CYCCNT_Clock::now();
+    time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    sprintf(PRINTF_OUT_STRING, "Helium Aligned;%d;%d\r\n", time, (end - start).count());
     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
     start = CYCCNT_Clock::now();
     testHeliumAlignmentNonAligned(count, hallo);
     end = CYCCNT_Clock::now();
     time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-
-    sprintf(PRINTF_OUT_STRING, "Helium Non-Aligned;%d\r\n", time);
+    sprintf(PRINTF_OUT_STRING, "Helium Non-Aligned;%d;%d\r\n", time, (end - start).count());
     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
     start = CYCCNT_Clock::now();
-    testHeliumAlignmentLEUnaligned(count, hallo);
+    testHeliumAlignmentVFMA(count, hallo);
     end = CYCCNT_Clock::now();
     time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-
-    sprintf(PRINTF_OUT_STRING, "Helium LE Non-Aligned;%d\r\n", time);
+    sprintf(PRINTF_OUT_STRING, "Helium Aligned VFMA;%d;%d\r\n", time, (end - start).count());
     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
+
+    start = CYCCNT_Clock::now();
+    testHeliumAlignmentNonAlignedVFMA(count, hallo);
+    end = CYCCNT_Clock::now();
+    time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    sprintf(PRINTF_OUT_STRING, "Helium Non-Aligned VFMA;%d;%d\r\n", time, (end - start).count());
+    SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
+
+
+    // start = CYCCNT_Clock::now();
+    // testHeliumAlignmentLEUnaligned(count, hallo);
+    // end = CYCCNT_Clock::now();
+    // time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+
+    // sprintf(PRINTF_OUT_STRING, "Helium LE Non-Aligned;%d\r\n", time);
+    // SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 }
 
 int main (void) {

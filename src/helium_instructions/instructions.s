@@ -123,15 +123,15 @@ loopLobVFMA:
     le lr, loopLobVFMA
 
 endLoobVFMA:
-    pop {pc}
+    pop.w {pc}
 
 .global testHeliumAlignmentNonAlignedVFMA
 .type testHeliumAlignmentNonAlignedVFMA, %function
 .p2align 2
 testHeliumAlignmentNonAlignedVFMA:
     push.w {lr}
-    dls lr, r0
     nop.n
+    dls lr, r0
 
 loopLobUAVFMA:
     vfma.f32 q0, q1, q2
@@ -142,32 +142,24 @@ loopLobUAVFMA:
     le lr, loopLobUAVFMA
 
 endLoobUAVFMA:
-    pop {pc}
+    pop.w {pc}
 
 .global testHeliumAlignment
 .type testHeliumAlignment, %function
 .p2align 2
 testHeliumAlignment:
     push.w {lr}
-
     dls lr, r0
 
 loopLob:
     vldrw.f32 q3, [r1]
     vfma.f32 q0, q1, q2
-
-    vfma.f32 q0, q1, q2
-    vfma.f32 q0, q1, q2
-    vfma.f32 q0, q1, q2
-    vfma.f32 q0, q1, q2
-
     vldrw.f32 q3, [r1]
     vfma.f32 q0, q1, q2
-
     le lr, loopLob
 
 endLoob:
-    pop {pc}
+    pop.w {pc}
 
 /**
 Start Aligned:
@@ -187,63 +179,35 @@ Start unaligned:
 .p2align 2
 testHeliumAlignmentNonAligned:
     push.w {lr}
-    nop.n // at this position: 1625798
+    nop.n
     dls lr, r0
 
 loopLobUA:
-    // nop.n : at this position: 750348
     vldrw.f32 q3, [r1]
-    // nop.n : at this position: 750390
     vfma.f32 q0, q1, q2
-
-    vfma.f32 q0, q1, q2
-    vfma.f32 q0, q1, q2
-    vfma.f32 q0, q1, q2
-    nop.w
-    vfma.f32 q0, q1, q2
-    vfma.f32 q0, q1, q2
-    vfma.f32 q0, q1, q2
-    nop.n
-    vfma.f32 q0, q1, q2
-    vfma.f32 q0, q1, q2
-
-
-    // nop.n : at this position: 750325
     vldrw.f32 q3, [r1]
-    // nop.n : at this position: 750351
     vfma.f32 q0, q1, q2
-    // nop.n : at this position: 875408
     le lr, loopLobUA
 
 endLoobUA:
-    pop {pc}
+    pop.w {pc}
 
+@ .global testHeliumAlignmentLEUnaligned
+@ .type testHeliumAlignmentLEUnaligned, %function
+@ .p2align 2
+@ testHeliumAlignmentLEUnaligned:
+@     push.w {lr}
+@     dls lr, r0
 
-.global testHeliumAlignmentLEUnaligned
-.type testHeliumAlignmentLEUnaligned, %function
-.p2align 2
-testHeliumAlignmentLEUnaligned:
-    push.w {lr}
-    // nop.w : at this position: 500239
-    dls lr, r0
+@ loopLobUA2:
+@     vldrw.f32 q3, [r1]
+@     vfma.f32 q0, q1, q2
+@     vldrw.f32 q3, [r1]
+@     vfma.f32 q0, q1, q2
+@     le lr, loopLobUA2
 
-loopLobUA2:
-    // nop.w : at this position: 750357
-    vldrw.f32 q3, [r1]
-    // nop.w : at this position: 750402
-    vfma.f32 q0, q1, q2
-    // nop.w : at this position: 750338
-
-
-
-    vldrw.f32 q3, [r1]
-    // nop.w : at this position: 750361
-    vfma.f32 q0, q1, q2
-    // nop.w : at this position: 875418
-    le lr, loopLobUA2
-
-endLoobUA2:
-    pop {pc}
+@ endLoobUA2:
+@     pop {pc}
 
 
 .global testDualIssue
