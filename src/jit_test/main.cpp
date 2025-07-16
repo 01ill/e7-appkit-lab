@@ -46,12 +46,12 @@ static float a[peakCount];// __attribute__((used, section(".bss.array_region_sra
 static float b[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 static float c[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 */
-#define CONST_SIZE
+// #define CONST_SIZE
 #ifdef CONST_SIZE
-static constexpr uint32_t arrayMaxSize = 6;
-static const uint32_t M = 4;
-static const uint32_t K = 1;
-static const uint32_t N = 4;
+static constexpr uint32_t arrayMaxSize = 16;
+static const uint32_t M = 1;
+static const uint32_t K = 205;
+static const uint32_t N = 9;
 static float bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
@@ -126,7 +126,7 @@ __NO_RETURN int main() {
     int32_t time;
     double gflops;
 
-    constSizeTest(bigA, bigB, bigC, bigCRef, globalBuffer, m, n, k);
+    constSizeTest(bigA, bigB, bigC, bigCRef, globalBuffer, m, n, k, false);
 
     // initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
     // gemm_20x24_jit(bigA, bigB, bigC);
@@ -176,7 +176,7 @@ __NO_RETURN int main() {
     // testGrowingK();
     // testGrowingM();
     // testGrowingN();
-    testAllSizes(bigA, bigB, bigC, bigCRef, globalBuffer, testArm, testJitter, testIntrinsics, testReference, 1, 64);
+    testAllSizes(bigA, bigB, bigC, bigCRef, globalBuffer, testArm, testJitter, testIntrinsics, testReference, 1, 240, true);
 #endif
 	LPRTC::getInstance().disable();
 	while (1) {
