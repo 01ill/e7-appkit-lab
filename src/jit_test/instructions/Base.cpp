@@ -253,3 +253,11 @@ Instruction32 Base::encodeImmediateConstant(Instruction32 instr, uint32_t consta
 bool canEncodeMVEImmediateConstant(uint32_t constant) {
     return false;
 }
+
+Instruction32 Base::pldImmediate(Register Rn, uint16_t imm, bool write) {
+    Instruction32 instr = 0xf890'f000;
+    instr |= imm;
+    instr |= Rn << 16;
+    instr |= write << 21;
+    return instr;
+}

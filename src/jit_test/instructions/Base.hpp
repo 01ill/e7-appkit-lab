@@ -288,6 +288,9 @@ class JIT::Instructions::Base {
          * @return Instruction32 
          */
         static Instruction32 encodeImmediateConstant(Instruction32 instr, uint32_t constant);
+
+
+        static Instruction32 pldImmediate(Register Rn, uint16_t imm, bool write = false);
 };
 
 #endif // BASE_HPP
