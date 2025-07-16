@@ -58,6 +58,7 @@ class JIT::Backend {
         uintptr_t getBufferThumbAddress(Instructions::Instruction16 * globalBuffer) const {
             return reinterpret_cast<uintptr_t>(globalBuffer) | 0x1U;
         }
+        void clearCaches();
 
     private:
         // Instructions::Instruction16 * instructionBuffer;

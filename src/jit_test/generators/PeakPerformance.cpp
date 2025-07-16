@@ -42,11 +42,25 @@ void (*JIT::Generators::PeakPerformance::generate(uint32_t operational_intensity
     // pop {pc}
     backend.addInstruction(Instructions::DataProcessing::pop32(Instructions::PC));
 
-    __asm("dsb");
-    __asm("isb");
-
+    backend.clearCaches();
     return reinterpret_cast<Func>(backend.getThumbAddress());
 }
+
+void (*JIT::Generators::PeakPerformance::generateVfma(uint32_t vfmaCount)) () {
+    backend.resetKernel();
+
+    // push {r4, lr}
+    backend.addInstruction(Instructions::DataProcessing::push32(Instructions::LR));
+
+    for (uint32_t i = 0; i < vfmaCount; i++)
+        backend.addInstruction(Instructions::Vector::vfma(Instructions::Q0, Instructions::Q2, Instructions::Q1));
+
+    backend.addInstruction(Instructions::DataProcessing::pop32(Instructions::PC));
+
+    backend.clearCaches();
+    return reinterpret_cast<FuncVoid>(backend.getThumbAddress());
+}
+
 
 // void (*JIT::Generators::PeakPerformance::generateNoMem(uint32_t operational_intensity)) (float const * a, float const * b, float * c, uint32_t size) {
 //     backend.resetKernel();

@@ -7,12 +7,20 @@
 using namespace JIT::Instructions;
 
 void JIT::Backend::addInstruction(Instruction16 instruction) {
-    instructions[instructionCount++] = instruction;
+    if (instructionCount + 1 >= maxInstructionCount) {
+        Base::printValidationError("Instruction count exceeded");
+    } else {
+        instructions[instructionCount++] = instruction;
+    }
 }
 
 void JIT::Backend::addInstruction(Instruction32 instruction) {
-    instructions[instructionCount++] = static_cast<Instruction16>(instruction >> 16U); // select 16 highest bits
-    instructions[instructionCount++] = static_cast<Instruction16>(instruction); // select 16 lowest bits
+    if (instructionCount + 2 >= maxInstructionCount) {
+        Base::printValidationError("Instruction count exceeded");
+    } else {
+        instructions[instructionCount++] = static_cast<Instruction16>(instruction >> 16U); // select 16 highest bits
+        instructions[instructionCount++] = static_cast<Instruction16>(instruction); // select 16 lowest bits
+    }
 }
 
 void JIT::Backend::addHeliumInstruction(Instruction32 instruction) {
@@ -131,4 +139,10 @@ uintptr_t JIT::Backend::getThumbAddress() const {
 void JIT::Backend::resetKernel() {
     // as no dynamic memory allocation is used, it is sufficient to just reset the instruction count/pointer
     instructionCount = 0;
+}
+
+void JIT::Backend::clearCaches() {
+    __asm("dsb");
+    __asm("isb");
+
 }
