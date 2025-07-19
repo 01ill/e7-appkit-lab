@@ -29,7 +29,7 @@ constexpr float peak = 1.6;
 
 constexpr bool testReference = false;
 constexpr bool testIntrinsics = false;
-constexpr bool testArm = false;
+constexpr bool testArm = true;
 constexpr bool testJitter = true;
 
 
@@ -46,12 +46,12 @@ static float a[peakCount];// __attribute__((used, section(".bss.array_region_sra
 static float b[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 static float c[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 */
-#define CONST_SIZE
+// #define CONST_SIZE
 #ifdef CONST_SIZE
 static constexpr uint32_t arrayMaxSize = 128;
-static const uint32_t M = 128;
-static const uint32_t K = 128;
-static const uint32_t N = 128;
+static const uint32_t M = 12;
+static const uint32_t K = 12;
+static const uint32_t N = 12;
 static float bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
@@ -64,9 +64,9 @@ static float bigC[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".b
 static float bigCRef[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
 #endif
 
-JIT::Instructions::Instruction16 globalBuffer[10000] __attribute__((section(".itcm_jit"), aligned(4)));
-JIT::Instructions::Instruction16 globalBufferDtcm[10000] __attribute__((aligned(4)));
-JIT::Instructions::Instruction16 globalBufferSram0[100000] __attribute__((section(".sram0_jit"), aligned(4)));
+JIT::Instructions::Instruction16 globalBuffer[8192] __attribute__((section(".itcm_jit"), aligned(4)));
+JIT::Instructions::Instruction16 globalBufferDtcm[8192] __attribute__((aligned(4)));
+JIT::Instructions::Instruction16 globalBufferSram0[8192] __attribute__((section(".sram0_jit"), aligned(4)));
 
 // JIT::Instructions::Instruction16 globalBuffer[3072] __attribute__((aligned(4)));
 
@@ -100,7 +100,6 @@ void configureMPU() {
     // Enable MPU with default memory map for privileged access
     ARM_MPU_Enable(MPU_CTRL_PRIVDEFENA_Msk);
 }
-
 
 __NO_RETURN int main() {
  	fault_dump_enable(true);
@@ -172,11 +171,11 @@ __NO_RETURN int main() {
 */
 #endif
 #ifndef CONST_SIZE
-    // testSquareShapes();
+    // testSquareShapes(bigA, bigB, bigC, bigCRef, globalBuffer, testArm, testJitter, testIntrinsics, testReference);
     // testGrowingK();
     // testGrowingM();
     // testGrowingN();
-    testAllSizes(bigA, bigB, bigC, bigCRef, globalBuffer, testArm, testJitter, testIntrinsics, testReference, 1, 240, true);
+    testAllSizes(bigA, bigB, bigC, bigCRef, globalBuffer, testArm, testJitter, testIntrinsics, testReference, 1, 8, 1, false);
 #endif
 	LPRTC::getInstance().disable();
 	while (1) {

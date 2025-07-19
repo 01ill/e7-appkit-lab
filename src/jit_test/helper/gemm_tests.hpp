@@ -44,5 +44,5 @@ void testAllSizes(
     float * bigA, float * bigB, float * bigC, float * bigCRef,
     JIT::Instructions::Instruction16 * globalBuffer,
     bool testArm, bool testJitter, bool testIntrinsics, bool testReference,
-    uint32_t start, uint32_t end, bool validate = false);
+    uint32_t start, uint32_t end, uint32_t resume = 1, bool validate = false);
 #endif // GEMM_TESTS_HPP

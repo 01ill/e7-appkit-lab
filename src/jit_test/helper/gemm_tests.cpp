@@ -1,6 +1,7 @@
 #include "gemm_tests.hpp"
 #include <chrono>
 #include <cstdint>
+#include "profiling.hpp"
 #include "timing.hpp"
 #include "gemm_kernel.hpp"
 #include "benchmark.hpp"
@@ -45,12 +46,11 @@ int32_t testShape(
     // auto gemmFunc = generator.generate(mBlocking, kBlocking, n, m, k, m);
 
     initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
-    // setupProfilingMemory();
+    // setupProfilingMVEInstructions();
     // startCounting();
     gemmFunc(bigA, bigB, bigC);
-    // jitBlocked_mk(bigA, bigB, bigC, m, n, k, gemmFunc);
     // stopCounting();
-    // printCounterMemory();
+    // printCounterMVEInstructions();
 
     gemm_reference_column_major(bigA, bigB, bigCRef, n, k, m, m, k, m);
     int32_t compareResult = compare(bigC, bigCRef, m*n);
@@ -159,7 +159,7 @@ void testSquareShapes(
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
             bool correctResult = gflops > 0;
             if (!correctResult) gflops = -gflops;
-            sprintf(PRINTF_OUT_STRING, "Square;%d;%d;%d;TillJIT-04.06.;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
+            sprintf(PRINTF_OUT_STRING, "Square;%d;%d;%d;TillJIT-4x3.;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
             SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
         }
         
@@ -350,7 +350,7 @@ void constSizeTest(
     uint32_t m, uint32_t n, uint32_t k, bool validate) {
 
     initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
-    JIT::Generators::Gemm gemmGen(globalBuffer, 3072);
+    JIT::Generators::Gemm gemmGen(globalBuffer, 10000);
     uint32_t repeats = 5;
     uint32_t flops = 2 * m * k * n;
     uint32_t iterations = (peak * pow(10, 9)) / flops;
@@ -360,7 +360,7 @@ void constSizeTest(
     for (uint32_t i = 0; i < repeats; i++) {
         time = testShape(bigA, bigB, bigC, bigCRef, m, n, k, iterations, gemmGen);
         gflops = (static_cast<float>(flops) / (time * 1000000.0f)) * iterations;
-        sprintf(PRINTF_OUT_STRING, "Unroll5;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, gflops > 0);
+        sprintf(PRINTF_OUT_STRING, "UnrollN;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, gflops > 0);
         SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
     }
 }
@@ -369,7 +369,7 @@ void testAllSizes(
     float * bigA, float * bigB, float * bigC, float * bigCRef,
     JIT::Instructions::Instruction16 * globalBuffer,
     bool testArm, bool testJitter, bool testIntrinsics, bool testReference,
-    uint32_t start, uint32_t end, bool validate) {
+    uint32_t start, uint32_t end, uint32_t resume, bool validate) {
     int32_t time;
     double gflops;
     JIT::Generators::Gemm gemmGen(globalBuffer, 3072);
@@ -378,6 +378,7 @@ void testAllSizes(
     for (uint32_t m = start; m <= end; m++) {
         for (uint32_t n = start; n <= end; n++) {
             for (uint32_t k = start; k <= end; k++) {
+                if (m < resume && n < resume && k < resume) continue;
                 // run approximately one second assuming peak performance
                 // 1.6gflops => 2n^3 flop per iteration
                 // 2n^3 * x = 1.6 * 10^9
@@ -397,7 +398,7 @@ void testAllSizes(
                     gflops = static_cast<float>(flops) / (time * 1000000.0f) * iterations;
                     bool correctResult = gflops > 0;
                     if (!correctResult) gflops = -gflops;
-                    sprintf(PRINTF_OUT_STRING, "Square;%d;%d;%d;TillJIT-04.06.;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
+                    sprintf(PRINTF_OUT_STRING, "Square;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
                     SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
                 }
                 
