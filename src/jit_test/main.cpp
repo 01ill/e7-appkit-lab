@@ -46,12 +46,12 @@ static float a[peakCount];// __attribute__((used, section(".bss.array_region_sra
 static float b[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 static float c[peakCount];// __attribute__((used, section(".bss.array_region_sram0")));
 */
-// #define CONST_SIZE
+#define CONST_SIZE
 #ifdef CONST_SIZE
-static constexpr uint32_t arrayMaxSize = 16;
-static const uint32_t M = 1;
-static const uint32_t K = 205;
-static const uint32_t N = 9;
+static constexpr uint32_t arrayMaxSize = 128;
+static const uint32_t M = 128;
+static const uint32_t K = 128;
+static const uint32_t N = 128;
 static float bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
