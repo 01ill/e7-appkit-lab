@@ -49,7 +49,7 @@ constexpr uint32_t MOV_TRESHOLD = 65535;
 */
 constexpr uint32_t K_MAX_UNROLL = 5;
 constexpr uint32_t M_MAX_UNROLL = 5;
-constexpr uint32_t N_MAX_UNROLL = 5;
+constexpr uint32_t N_MAX_UNROLL = 3;
 /* Use 8x3 microkernel by default */
 constexpr uint32_t DEFAULT_MICROKERNEL_M = 8;
 constexpr uint32_t DEFAULT_MICROKERNEL_N = 3;
@@ -709,7 +709,7 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
     /* Use 4x6 microkernel if it possible to run it every second iteration, i.e. if n minus the rest is dividible by 6 */
     bool use46Microkernel = (m <= 4 && n > 3) || // also used if m loop is not needed (or if single microkernel is generated)
         (m % DEFAULT_MICROKERNEL_M != 0 && m % DEFAULT_MICROKERNEL_M <= 4 && (n - (n % DEFAULT_MICROKERNEL_N)) % 6 == 0);
-    use46Microkernel = false;
+    // use46Microkernel = false;
     /* We need the second B pointer if the 4x6 microkernel is used and the immediate is too large */
     bool needsBCol3Reg = use46Microkernel && 5 * DT_SIZE * k > LDR_TRESHOLD;
     /* we need the ldb register if the load from B is not possible with immediates, i.e. if k is large. is also needed whenever we have to use a second B pointer */
@@ -726,8 +726,8 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
     bool needsMReg = m > 255 && !Instructions::Base::canEncodeImmediateConstant(m);
 
     /* can we unroll M and N? only unrolled if everything can be unrolled */
-    bool canUnrollM = M_MAX_UNROLL * DEFAULT_MICROKERNEL_M >= m;
-    bool canUnrollN = N_MAX_UNROLL * DEFAULT_MICROKERNEL_N >= n;
+    bool canUnrollM = M_MAX_UNROLL * DEFAULT_MICROKERNEL_M >= m - (m % DEFAULT_MICROKERNEL_M);
+    bool canUnrollN = N_MAX_UNROLL * DEFAULT_MICROKERNEL_N >= n - (n % DEFAULT_MICROKERNEL_N);
 
     uint8_t regCount = 0; // counter for used registers (max. three)
     Instructions::Register lenRegister[] = {LEN1_REGISTER, LEN2_REGISTER, LEN3_REGISTER}; // used registers
@@ -854,13 +854,13 @@ void (*JIT::Generators::Gemm::generate(uint32_t m, uint32_t k, uint32_t n, uint3
         uint32_t highestN = 0;
         if (m <= 4) highestN = n <= 6 ? n : 6;
         else highestN = n <= 3 ? n : 3;
-
+        canUnrollN = N_MAX_UNROLL * highestN >= n - (n % highestN);
         /*
         * Loop j (n loop): Count from 0 to n
         */
         Instructions::Instruction16 * jLoopStart;
         if (!canUnrollN) jLoopStart = backend.addBranchTargetInstruction(Instructions::Base::nop32()); // start of the j loop
-        uint32_t unrollN = canUnrollN ? (n - (n % DEFAULT_MICROKERNEL_N)) / DEFAULT_MICROKERNEL_N : 1;
+        uint32_t unrollN = canUnrollN ? (n - (n % highestN)) / highestN : 1;
 
         for (uint32_t j = 0; j < unrollN; j++) {
             generateMicroKernel(m, k, highestN, lda, ldb, ldc, configuration); // generate microkernel and pass the highestN value
