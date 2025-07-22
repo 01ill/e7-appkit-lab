@@ -27,13 +27,10 @@ constexpr float peak = 0.64;
 constexpr float peak = 1.6;
 #endif
 
-constexpr bool testReference = false;
-constexpr bool testIntrinsics = false;
+constexpr bool testReference = true;
+constexpr bool testIntrinsics = true;
 constexpr bool testArm = true;
 constexpr bool testJitter = true;
-
-
-
 
 extern "C" {
     void gemm_20x24_jit(float const * __restrict__ a, float const * __restrict__ b, float * __restrict__ c);
@@ -49,19 +46,24 @@ static float c[peakCount];// __attribute__((used, section(".bss.array_region_sra
 // #define CONST_SIZE
 #ifdef CONST_SIZE
 static constexpr uint32_t arrayMaxSize = 128;
-static const uint32_t M = 12;
-static const uint32_t K = 12;
-static const uint32_t N = 12;
+static const uint32_t M = 1;
+static const uint32_t K = 28;
+static const uint32_t N = 9;
 static float bigA[M*K];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[K*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigCRef[M*N];// __attribute__((used, section(".bss.array_region_sram0")));
 #else
-static constexpr uint32_t arrayMaxSize = 240;
+static constexpr uint32_t arrayMaxSize = 100;
 static float bigA[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigB[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
 static float bigC[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
-static float bigCRef[arrayMaxSize*arrayMaxSize];// __attribute__((used, section(".bss.array_region_sram0")));
+static float bigCRef[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
+static float aSram0[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
+static float bSram0[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
+static float cSram0[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
+static float cRefSram0[arrayMaxSize*arrayMaxSize] __attribute__((used, section(".bss.array_region_sram0")));
+
 #endif
 
 JIT::Instructions::Instruction16 globalBuffer[8192] __attribute__((section(".itcm_jit"), aligned(4)));
@@ -172,10 +174,15 @@ __NO_RETURN int main() {
 #endif
 #ifndef CONST_SIZE
     // testSquareShapes(bigA, bigB, bigC, bigCRef, globalBuffer, testArm, testJitter, testIntrinsics, testReference);
-    // testGrowingK();
-    // testGrowingM();
-    // testGrowingN();
-    testAllSizes(bigA, bigB, bigC, bigCRef, globalBuffer, testArm, testJitter, testIntrinsics, testReference, 1, 8, 1, false);
+    testGrowingK(bigA, bigB, bigC, bigCRef, globalBuffer, testArm, testJitter, testIntrinsics, testReference);
+    testGrowingM(bigA, bigB, bigC, bigCRef, globalBuffer, testArm, testJitter, testIntrinsics, testReference);
+    testGrowingN(bigA, bigB, bigC, bigCRef, globalBuffer, testArm, testJitter, testIntrinsics, testReference);
+    // testSquareShapes(aSram0, bSram0, cSram0, cRefSram0, globalBuffer, testArm, testJitter, testIntrinsics, testReference);
+    // testGrowingK(aSram0, bSram0, cSram0, cRefSram0, globalBuffer, testArm, testJitter, testIntrinsics, testReference);
+    // testGrowingM(aSram0, bSram0, cSram0, cRefSram0, globalBuffer, testArm, testJitter, testIntrinsics, testReference);
+    // testGrowingN(aSram0, bSram0, cSram0, cRefSram0, globalBuffer, testArm, testJitter, testIntrinsics, testReference);
+
+    // testAllSizes(bigA, bigB, bigC, bigCRef, globalBuffer, testArm, testJitter, testIntrinsics, testReference, 1, 16, 13, false);
 #endif
 	LPRTC::getInstance().disable();
 	while (1) {

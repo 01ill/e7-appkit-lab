@@ -8,10 +8,12 @@
 
 #ifdef M55_HE
 constexpr float peak = 0.64;
+constexpr uint32_t arrSize = 100;
 #endif
 
 #ifdef M55_HP
 constexpr float peak = 1.6;
+constexpr uint32_t arrSize = 240;
 #endif
 static char PRINTF_OUT_STRING[256] __attribute__((used, section(".bss.array_region_sram0")));
 
@@ -88,14 +90,14 @@ int32_t testShapeIntrinsics(
         float * bigA, float * bigB, float * bigC, float * bigCRef,
         uint32_t m, uint32_t n, uint32_t k, uint32_t iterations) {
     initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
-    gemm_intrinsics_16x1(bigA, bigB, bigC, n, k, m, m, k, m);
+    gemm_intrinsics_8x3(bigA, bigB, bigC, n, k, m, m, k, m);
     gemm_reference_column_major(bigA, bigB, bigCRef, n, k, m, m, k, m);
     int32_t compareResult = compare(bigC, bigCRef, m*n);
 
     initMatrices(bigA, bigB, bigC, bigCRef, m, n, k);
     auto start = RTC_Clock::now();
     for (uint32_t j = 0; j < iterations; j++) {
-        gemm_intrinsics_16x1(bigA, bigB, bigCRef, n, k, m, m, k, m);
+        gemm_intrinsics_8x3(bigA, bigB, bigCRef, n, k, m, m, k, m);
     }
     auto end = RTC_Clock::now();
     auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
@@ -137,7 +139,7 @@ void testSquareShapes(
     JIT::Generators::Gemm gemmGen(globalBuffer, 3072);
     SEGGER_RTT_printf(0, "--- START TEST SQUARE SHAPES ---\n");
     SEGGER_RTT_printf(0, "Test;M;K;N;Type;GFLOPS;Time;Iterations;Correct\n");
-    for (uint32_t i = 2; i < 240; i++) {
+    for (uint32_t i = 1; i <= 240; i++) {
         // run approximately one second assuming peak performance
         // 1.6gflops => 2n^3 flop per iteration
         // 2n^3 * x = 1.6 * 10^9
@@ -146,6 +148,7 @@ void testSquareShapes(
         k = i;
         uint32_t flops = 2 * m * k * n;
         uint32_t iterations = (peak * pow(10, 9)) / flops;
+        iterations = iterations > 10000000 ? 10000000 : iterations;
         // iterations = 30000;
         if (testArm) {
             time = testShapeArm(bigA, bigB, bigC, bigCRef, m, n, k, iterations);
@@ -159,7 +162,7 @@ void testSquareShapes(
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
             bool correctResult = gflops > 0;
             if (!correctResult) gflops = -gflops;
-            sprintf(PRINTF_OUT_STRING, "Square;%d;%d;%d;TillJIT-4x3.;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
+            sprintf(PRINTF_OUT_STRING, "Square;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
             SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
         }
         
@@ -193,13 +196,14 @@ void testGrowingK(
     JIT::Generators::Gemm gemmGen(globalBuffer, 3072);
     SEGGER_RTT_printf(0, "--- START TEST GROWING K ---\n");
     SEGGER_RTT_printf(0, "Test;M;K;N;Type;GFLOPS;Time;Iterations;Correct\n");
-    for (uint32_t i = 2; i < 240; i++) {
+    for (uint32_t i = 1; i <= arrSize; i++) {
         // run approximately one second assuming peak performance
         // 1.6gflops => 2n^3 flop per iteration
         // 2n^3 * x = 1.6 * 10^9
         k = i;
         uint32_t flops = 2 * m * k * n;
         uint32_t iterations = (peak * pow(10, 9)) / flops;
+        iterations = iterations > 10000000 ? 10000000 : iterations;
         if (testArm) {
             time = testShapeArm(bigA, bigB, bigC, bigCRef, m, n, k, iterations);
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
@@ -212,7 +216,7 @@ void testGrowingK(
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
             bool correctResult = gflops > 0;
             if (!correctResult) gflops = -gflops;
-            sprintf(PRINTF_OUT_STRING, "GrowK;%d;%d;%d;TillJIT-04.06.;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
+            sprintf(PRINTF_OUT_STRING, "GrowK;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
             SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
         }
 
@@ -247,13 +251,14 @@ void testGrowingM(
     JIT::Generators::Gemm gemmGen(globalBuffer, 3072);
     SEGGER_RTT_printf(0, "--- START TEST GROWING M ---\n");
     SEGGER_RTT_printf(0, "Test;M;K;N;Type;GFLOPS;Time;Iterations;Correct\n");
-    for (uint32_t i = 2; i < 240; i++) {
+    for (uint32_t i = 1; i <= arrSize; i++) {
         // run approximately one second assuming peak performance
         // 1.6gflops => 2n^3 flop per iteration
         // 2n^3 * x = 1.6 * 10^9
         m = i;
         uint32_t flops = 2 * m * k * n;
         uint32_t iterations = (peak * pow(10, 9)) / flops;
+        iterations = iterations > 10000000 ? 10000000 : iterations;
         if (testArm) {
             time = testShapeArm(bigA, bigB, bigC, bigCRef, m, n, k, iterations);
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
@@ -266,7 +271,7 @@ void testGrowingM(
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
             bool correctResult = gflops > 0;
             if (!correctResult) gflops = -gflops;
-            sprintf(PRINTF_OUT_STRING, "GrowM;%d;%d;%d;TillJIT-04.06.;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
+            sprintf(PRINTF_OUT_STRING, "GrowM;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
             SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
         }
 
@@ -301,7 +306,7 @@ void testGrowingN(
     JIT::Generators::Gemm gemmGen(globalBuffer, 3072);
     SEGGER_RTT_printf(0, "--- START TEST GROWING N ---\n");
     SEGGER_RTT_printf(0, "Test;M;K;N;Type;GFLOPS;Time;Iterations;Correct\n");
-    for (uint32_t i = 2; i < 240; i++) {
+    for (uint32_t i = 1; i <= arrSize; i++) {
         // run approximately one second assuming peak performance
         // 1.6gflops => 2n^3 flop per iteration
         // 2n^3 * x = 1.6 * 10^9
@@ -320,7 +325,7 @@ void testGrowingN(
             gflops = static_cast<float>(flops) / (time/1000.0f * pow(10, 9)) * iterations;
             bool correctResult = gflops > 0;
             if (!correctResult) gflops = -gflops;
-            sprintf(PRINTF_OUT_STRING, "GrowN;%d;%d;%d;TillJIT-04.06.;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
+            sprintf(PRINTF_OUT_STRING, "GrowN;%d;%d;%d;TillJIT;%f;%d;%d;%d\r\n", m, k, n, gflops, time, iterations, correctResult);
             SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
         }
 
@@ -383,7 +388,7 @@ void testAllSizes(
                 // 1.6gflops => 2n^3 flop per iteration
                 // 2n^3 * x = 1.6 * 10^9
                 uint32_t flops = 2 * m * k * n;
-                uint32_t iterations = (peak * pow(10, 9)) / flops;
+                uint32_t iterations = ((peak * pow(10, 9)) / flops) * 0.2;
                 iterations = iterations > 10000000 ? 10000000 : iterations;
                 if (validate) iterations = 0;
                 if (testArm) {
