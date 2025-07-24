@@ -47,7 +47,7 @@ static float a[STREAM_ARRAY_SIZE];
 // static float b[STREAM_ARRAY_SIZE];
 // static float c[STREAM_ARRAY_SIZE];
 
-static float a_SRAM0[STREAM_ARRAY_SIZE] __attribute__((used, section(".bss.array_region_sram0")));
+static float a_SRAM0[STREAM_ARRAY_SIZE] __attribute__((used, section(".bss.array_region_sram0"), aligned(32)));
 // static float b_SRAM0[STREAM_ARRAY_SIZE] __attribute__((used, section(".bss.array_region_sram0")));
 // static float c_SRAM0[STREAM_ARRAY_SIZE] __attribute__((used, section(".bss.array_region_sram0")));
 
@@ -114,7 +114,7 @@ extern "C" {
 	void flops_mve_fp32(uint32_t len);
 	void flops_mve_fp32_interleaved(float * __restrict a, float * __restrict b, float * __restrict c, float scalar, uint32_t len);
 	void flops_mve_fp32_vec4(uint32_t len);
-	void throughput_mve_read(float * a, uint32_t len);
+	void throughput_mve_read(float const * a, const uint32_t len);
 	void throughput_mve_read2(float * a, float * b, uint32_t len);
 	void throughput_mve_write(float * a, uint32_t len);
 	void throughput_scalar_read(float * a, uint32_t len);
@@ -183,9 +183,9 @@ void benchmarkThroughput() {
 	SEGGER_RTT_printf(0, "Test;Time (µs);GFLOPS\n");
 	for (uint32_t j = 0; j < ITERATIONS; j++) {
 		initArrays();
-		throughput_mve_read(a, STREAM_ARRAY_SIZE);
+		//throughput_mve_read(a, STREAM_ARRAY_SIZE);
 		start = CYCCNT_Clock::now();
-		for (uint32_t i = 0; i < loopCount; i++) throughput_mve_read(a, STREAM_ARRAY_SIZE);
+		//for (uint32_t i = 0; i < loopCount; i++) throughput_mve_read(a, STREAM_ARRAY_SIZE);
 		end = CYCCNT_Clock::now();
 		time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 		gflops = targetThroughput / (time/1000000.0f * pow(10, 9));
@@ -213,9 +213,9 @@ void benchmarkThroughput() {
 		SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
 		initArrays();
-		throughput_mve_read(a_SRAM0, STREAM_ARRAY_SIZE);
+		//throughput_mve_read(a_SRAM0, STREAM_ARRAY_SIZE);
 		start = CYCCNT_Clock::now();
-		for (uint32_t i = 0; i < loopCount; i++) throughput_mve_read(a_SRAM0, STREAM_ARRAY_SIZE);
+		//for (uint32_t i = 0; i < loopCount; i++) throughput_mve_read(a_SRAM0, STREAM_ARRAY_SIZE);
 		end = CYCCNT_Clock::now();
 		time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 		gflops = targetThroughput / (time/1000000.0f * pow(10, 9));
@@ -224,8 +224,9 @@ void benchmarkThroughput() {
 	}
 }
 
-uint32_t throughputSizes[] = {512, 536, 560, 588, 616, 644, 672, 704, 740, 772, 808, 848, 888, 928, 972, 1020, 1068, 1116, 1168, 1224, 1280, 1340, 1404, 1472, 1540, 1612, 1688, 1768, 1848, 1936, 2028, 2124, 2224, 2328, 2436, 2552, 2672, 2796, 2928, 3064, 3208, 3360, 3516, 3680, 3856, 4036, 4224, 4424, 4632, 4848, 5076, 5312, 5564, 5824, 6096, 6384, 6684, 6996, 7324, 7668, 8028, 8404, 8800, 9212, 9644, 10096, 10572, 11068, 11588, 12128, 12700, 13296, 13920, 14572, 15256, 15972, 16720, 17504, 18328, 19188, 20088, 21028, 22016, 23048, 24128, 25260, 26448, 27688, 28988, 30348, 31772, 33260, 34820, 36456, 38164, 39956, 41832, 43792, 45848, 47996};
-uint16_t throughputSizesLen = 100;
+// uint32_t throughputSizes[] = {512, 536, 560, 588, 616, 644, 672, 704, 740, 772, 808, 848, 888, 928, 972, 1020, 1068, 1116, 1168, 1224, 1280, 1340, 1404, 1472, 1540, 1612, 1688, 1768, 1848, 1936, 2028, 2124, 2224, 2328, 2436, 2552, 2672, 2796, 2928, 3064, 3208, 3360, 3516, 3680, 3856, 4036, 4224, 4424, 4632, 4848, 5076, 5312, 5564, 5824, 6096, 6384, 6684, 6996, 7324, 7668, 8028, 8404, 8800, 9212, 9644, 10096, 10572, 11068, 11588, 12128, 12700, 13296, 13920, 14572, 15256, 15972, 16720, 17504, 18328, 19188, 20088, 21028, 22016, 23048, 24128, 25260, 26448, 27688, 28988, 30348, 31772, 33260, 34820, 36456, 38164, 39956, 41832, 43792, 45848, 47996};
+uint32_t throughputSizes[] = {480, 544, 608, 672, 736, 800, 864, 960, 1056, 1152, 1280, 1408, 1536, 1696, 1856, 2048, 2240, 2464, 2688, 2976, 3264, 3584, 3904, 4288, 4704, 5184, 5696, 6240, 6848, 7520, 8224, 9024, 9920, 10880, 11936, 13088, 14368, 15776, 17312, 18976, 20832, 22848, 25088, 27520, 30176, 33120, 36320, 39872, 43744, 48000};
+uint16_t throughputSizesLen = 50;
 
 void benchmarkThroughputDifferentSizes() {
 	auto start = CYCCNT_Clock::now();
@@ -240,15 +241,15 @@ void benchmarkThroughputDifferentSizes() {
 		bytes = sizeof(float) * len;
 		uint32_t targetThroughput = (peak * pow(10, 9));
 		uint32_t loopCount = (targetThroughput / bytes);
-		
 		initArrays();
-		throughput_mve_read(a_SRAM0, len);
+		for (k = 0; k < 10; ++k) throughput_mve_read(a_SRAM0, len);
+		// CYCCNT_Clock::reset();
 		start = CYCCNT_Clock::now();
-		for (k = 0; k < loopCount; k++) throughput_mve_read(a_SRAM0, len);
+		for (k = 0; k < loopCount; ++k) throughput_mve_read(a_SRAM0, len);
 		end = CYCCNT_Clock::now();
 		time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 		gflops = targetThroughput / (time * 1000.0f);
-		sprintf(PRINTF_OUT_STRING, "Read Throughput SRAM 0;%d;%d;%f\r\n", len, time, gflops);
+		sprintf(PRINTF_OUT_STRING, "Read SRAM;%d;%d;%f\r\n", len, time, gflops);
 		SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
 		initArrays();
@@ -258,7 +259,7 @@ void benchmarkThroughputDifferentSizes() {
 		end = CYCCNT_Clock::now();
 		time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 		gflops = targetThroughput / (time * 1000.0f);
-		sprintf(PRINTF_OUT_STRING, "Scalar Read Throughput SRAM 0;%d;%d;%f\r\n", len, time, gflops);
+		sprintf(PRINTF_OUT_STRING, "Scalar Read SRAM;%d;%d;%f\r\n", len, time, gflops);
 		SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
 		initArrays();
@@ -268,7 +269,7 @@ void benchmarkThroughputDifferentSizes() {
 		end = CYCCNT_Clock::now();
 		time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 		gflops = targetThroughput / (time * 1000.0f);
-		sprintf(PRINTF_OUT_STRING, "Read Throughput;%d;%d;%f\r\n", len, time, gflops);
+		sprintf(PRINTF_OUT_STRING, "Read TCM;%d;%d;%f\r\n", len, time, gflops);
 		SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
 		initArrays();
@@ -278,7 +279,7 @@ void benchmarkThroughputDifferentSizes() {
 		end = CYCCNT_Clock::now();
 		time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 		gflops = targetThroughput / (time * 1000.0f);
-		sprintf(PRINTF_OUT_STRING, "Scalar Read Throughput;%d;%d;%f\r\n", len, time, gflops);
+		sprintf(PRINTF_OUT_STRING, "Scalar Read TCM;%d;%d;%f\r\n", len, time, gflops);
 		SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 		
 		initArrays();
@@ -288,7 +289,7 @@ void benchmarkThroughputDifferentSizes() {
 		end = CYCCNT_Clock::now();
 		time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 		gflops = targetThroughput / (time * 1000.0f);
-		sprintf(PRINTF_OUT_STRING, "Write Throughput SRAM 0;%d;%d;%f\r\n", len, time, gflops);
+		sprintf(PRINTF_OUT_STRING, "Write SRAM;%d;%d;%f\r\n", len, time, gflops);
 		SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
 		initArrays();
@@ -298,7 +299,7 @@ void benchmarkThroughputDifferentSizes() {
 		end = CYCCNT_Clock::now();
 		time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 		gflops = targetThroughput / (time * 1000.0f);
-		sprintf(PRINTF_OUT_STRING, "Scalar Write Throughput SRAM 0;%d;%d;%f\r\n", len, time, gflops);
+		sprintf(PRINTF_OUT_STRING, "Scalar Write SRAM;%d;%d;%f\r\n", len, time, gflops);
 		SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
 		initArrays();
@@ -308,7 +309,7 @@ void benchmarkThroughputDifferentSizes() {
 		end = CYCCNT_Clock::now();
 		time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 		gflops = targetThroughput / (time * 1000.0f);
-		sprintf(PRINTF_OUT_STRING, "Write Throughput;%d;%d;%f\r\n", len, time, gflops);
+		sprintf(PRINTF_OUT_STRING, "Write TCM;%d;%d;%f\r\n", len, time, gflops);
 		SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 
 		initArrays();
@@ -318,7 +319,7 @@ void benchmarkThroughputDifferentSizes() {
 		end = CYCCNT_Clock::now();
 		time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 		gflops = targetThroughput / (time * 1000.0f);
-		sprintf(PRINTF_OUT_STRING, "Scalar Write Throughput;%d;%d;%f\r\n", len, time, gflops);
+		sprintf(PRINTF_OUT_STRING, "Scalar Write TCM;%d;%d;%f\r\n", len, time, gflops);
 		SEGGER_RTT_WriteString(0, PRINTF_OUT_STRING);
 	}
 }
@@ -332,7 +333,7 @@ void configureMPU() {
         {
             // SRAM0 region with caching enabled
             .RBAR = ARM_MPU_RBAR(0x02000000UL, ARM_MPU_SH_NON, 0UL, 1UL, 1UL), // RW, NP, XN
-            .RLAR = ARM_MPU_RLAR(0x023FFFFFUL, 2UL) // SRAM0 with cacheable attribute
+            .RLAR = ARM_MPU_RLAR(0x023FFFFFUL, 1UL) // SRAM0 with cacheable attribute
         }
     };
     

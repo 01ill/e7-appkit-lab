@@ -54,7 +54,7 @@ throughput_scalar_write:
 
     dls lr, r1
 throughput_scalar_write_loop:
-    ldr r2, [r0], #4
+    str r2, [r0], #4
     le lr, throughput_scalar_write_loop
 
 throughput_scalar_write_loop_end:
